@@ -1,0 +1,9 @@
+diff a/TactiX_Server/Program.cs b/TactiX_Server/Program.cs	(rejected hunks)
+@@ -28,7 +28,6 @@
+ 
+                 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+                 builder.Services.AddEndpointsApiExplorer();
+-                builder.Services.AddSwaggerGen();
+ 
+                 // ����ѹ��
+                 builder.Services.AddResponseCompression(options => 
