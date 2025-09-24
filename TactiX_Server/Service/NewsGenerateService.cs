@@ -227,7 +227,10 @@ namespace TactiX_Server.Service
                 }
             });
         }
-
+        /// <summary>
+        /// 获取数据库配置的Bilibili视频主的更新情况
+        /// </summary>
+        /// <returns></returns>
         private async Task UpdateBiliBiliVideo()
         {
             await Task.Run(async () =>
