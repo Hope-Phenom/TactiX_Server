@@ -19,6 +19,28 @@
 CREATE DATABASE IF NOT EXISTS `tactix` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
 USE `tactix`;
 
+-- 导出  表 tactix.config_video_up 结构
+CREATE TABLE IF NOT EXISTS `config_video_up` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `name` text NOT NULL COMMENT '名称',
+  `type` tinyint unsigned NOT NULL DEFAULT (0) COMMENT '类型，0-Bilibili',
+  `url` text NOT NULL COMMENT '地址',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='视频博主的地址配置，用于从中解析要推荐的视频';
+
+-- 数据导出被取消选择。
+
+-- 导出  表 tactix.news_community 结构
+CREATE TABLE IF NOT EXISTS `news_community` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `update_datetime` datetime NOT NULL COMMENT '更新时间',
+  `json` json NOT NULL COMMENT '新闻列表JSON',
+  `type` tinyint unsigned NOT NULL COMMENT '类别，0-社区热帖，1-Bilibili视频推荐',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=50 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MAX_ROWS=1000 COMMENT='社区热帖和Bilibili视频推荐';
+
+-- 数据导出被取消选择。
+
 -- 导出  表 tactix.stats_excption_report 结构
 CREATE TABLE IF NOT EXISTS `stats_excption_report` (
   `id` int unsigned NOT NULL AUTO_INCREMENT COMMENT '索引',

@@ -3,8 +3,10 @@ using Microsoft.EntityFrameworkCore;
 
 using NLog;
 using NLog.Web;
+using OpenQA.Selenium.Chrome;
 
 using TactiX_Server.Data;
+using TactiX_Server.Service;
 
 namespace TactiX_Server
 {
@@ -37,6 +39,9 @@ namespace TactiX_Server
                 RegisterDbContext(builder);
                 // 注册HttpClient
                 RegisterHttpClient(builder);
+
+                // Add services to the container.
+                builder.Services.AddHostedService<NewsGenerateService>();
 
                 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
                 builder.Services.AddEndpointsApiExplorer();
@@ -93,9 +98,15 @@ namespace TactiX_Server
         /// </summary>
         private static void RegisterDbContext(WebApplicationBuilder builder)
         {
-            // 注册DbContext到服务容器
-            var dbConnectionString = builder.Configuration.Get<ServerConfig>()!.DBConnString;
+            var dbConnectionString = builder.Configuration["TACTIX_CONNCTION_STRINGS"];
+
+            // 统计与状态相关
             builder.Services.AddDbContext<StatsDbContext>(options =>
+            {
+                options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString));
+            });
+            // 新闻相关
+            builder.Services.AddDbContext<NewsDbContext>(options =>
             {
                 options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString));
             });
@@ -127,6 +138,16 @@ namespace TactiX_Server
                     ?? throw new InvalidOperationException("TACTIX_FORUM_PASSWORD environment variable is required");
                 options.DBConnString = builder.Configuration["TACTIX_CONNCTION_STRINGS"]
                     ?? throw new InvalidOperationException("TACTIX_CONNCTION_STRINGS environment variable is required");
+            });
+
+            builder.Services.Configure<ChromeOptions>(options => 
+            {
+                //options.AddArgument("--headless");
+                options.AddArgument("--headless=new");
+                options.AddArgument("--disable-gpu");
+                options.AddArgument("--no-sandbox");
+                options.AddArgument("--window-size=1920,1080");
+                options.AddArgument("--disable-extensions");
             });
         }
     }

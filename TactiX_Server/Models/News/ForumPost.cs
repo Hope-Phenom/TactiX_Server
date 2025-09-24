@@ -1,4 +1,4 @@
-﻿namespace TactiX_Server.Models
+﻿namespace TactiX_Server.Models.News
 {
     /// <summary>
     /// 论坛爬虫解析条目
