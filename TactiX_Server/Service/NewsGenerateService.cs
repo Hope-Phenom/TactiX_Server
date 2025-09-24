@@ -251,6 +251,7 @@ namespace TactiX_Server.Service
                     foreach (var up in ups)
                     {
                         list.AddRange(await ResolveBiliBiliSpace(driver, up));
+                        Thread.Sleep(1000);
                     }
 
                     // 获取当前时间快照（用于统一时间基准）
