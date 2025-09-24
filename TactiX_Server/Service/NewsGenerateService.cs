@@ -1,13 +1,13 @@
-﻿using System.Globalization;
-using System.Net;
-
-using AngleSharp.Html.Parser;
+﻿using AngleSharp.Html.Parser;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
-
+using System.Diagnostics;
+using System.Globalization;
+using System.Net;
+using System.Runtime.InteropServices;
 using TactiX_Server.Data;
 using TactiX_Server.Models.News;
 
@@ -235,6 +235,8 @@ namespace TactiX_Server.Service
         {
             await Task.Run(async () =>
             {
+                KillAllChromeProcesses();
+
                 using var scope = _scopeFactory.CreateScope();
                 using var driver = new ChromeDriver(_chromeOptions);
                 var list = new List<VideoInfo>();
@@ -346,9 +348,9 @@ namespace TactiX_Server.Service
 
                             list.Add(info);
                         }
-                        catch (NoSuchElementException ex)
+                        catch (NoSuchElementException)
                         {
-                            _logger.LogInformation($"Selenium resolve element error, msg:{ex.Message}.");
+                            _logger.LogInformation($"Selenium resolve element error.");
                         }
                     }
 
@@ -401,6 +403,64 @@ namespace TactiX_Server.Service
 
                 // 类别2（最低优先级），用Ticks的负值实现日期倒序（越近的日期Value越小）
                 return (2, -date.Ticks);
+            }
+        }
+        /// <summary>
+        /// 清理所有Chrome进程（防止上次卡死遗留）
+        /// </summary>
+        public void KillAllChromeProcesses()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                KillProcessesByName("chrome");
+                KillProcessesByName("chromedriver");
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                     RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                // Linux 和 macOS
+                KillProcessesByName("google-chrome");
+                KillProcessesByName("chromedriver");
+
+                // 额外使用命令行工具确保所有相关进程被终止
+                ExecuteCommand("pkill", "-f chrome");
+                ExecuteCommand("pkill", "-f chromedriver");
+            }
+        }
+        private void KillProcessesByName(string processName)
+        {
+            foreach (var process in Process.GetProcessesByName(processName))
+            {
+                try
+                {
+                    process.Kill();
+                    process.WaitForExit(5000); // 等待最多5秒
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"无法终止进程 {processName}: {ex.Message}");
+                }
+            }
+        }
+        private void ExecuteCommand(string command, string arguments)
+        {
+            try
+            {
+                using (var process = new Process())
+                {
+                    process.StartInfo.FileName = command;
+                    process.StartInfo.Arguments = arguments;
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.CreateNoWindow = true;
+                    process.StartInfo.RedirectStandardOutput = true;
+                    process.StartInfo.RedirectStandardError = true;
+                    process.Start();
+                    process.WaitForExit(5000); // 等待最多5秒
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"执行命令失败: {command} {arguments}, 错误: {ex.Message}");
             }
         }
     }
