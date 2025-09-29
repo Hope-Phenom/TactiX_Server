@@ -208,7 +208,7 @@ namespace TactiX_Server.Service
                     {
                         Update_DateTime = DateTime.Now,
                         Type = 0,
-                        Json = JsonConvert.SerializeObject(posts)
+                        Json = JsonConvert.SerializeObject(posts.Take(20).ToList())
                     };
 
                     using (var scope = _scopeFactory.CreateScope())
@@ -264,10 +264,10 @@ namespace TactiX_Server.Service
                             Video = v,
                             SortKey = ParsePublishDate(v.PublishDate, now) // 解析为排序键
                         })
-                        .OrderBy(x => x.SortKey.Category) // 先按类别排序
+                        .OrderBy(x => x.SortKey.Category)  // 先按类别排序
                         .ThenBy(x => x.SortKey.Value)      // 再按类别内规则排序
                         .Select(x => x.Video)              // 还原为VideoInfo
-                        .Take(6)                          // 取前6项
+                        .Take(8)                           // 取前8项
                         .ToList();
 
                     driver.Quit();
