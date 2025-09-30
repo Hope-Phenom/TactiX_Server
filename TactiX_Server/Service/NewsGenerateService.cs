@@ -270,7 +270,7 @@ namespace TactiX_Server.Service
                         .OrderBy(x => x.SortKey.Category)  // 先按类别排序
                         .ThenBy(x => x.SortKey.Value)      // 再按类别内规则排序
                         .Select(x => x.Video)              // 还原为VideoInfo
-                        .Take(8)                           // 取前8项
+                        .Take(6)                           // 取前6项
                         .ToList();
 
                     driver.Quit();
