@@ -241,6 +241,9 @@ namespace TactiX_Server.Service
                 using var driver = new ChromeDriver(_chromeOptions);
                 var list = new List<VideoInfo>();
 
+                // 等待Chrome启动完毕
+                Thread.Sleep(10000);
+
                 try
                 {
                     var context = scope.ServiceProvider.GetRequiredService<NewsDbContext>();
@@ -307,7 +310,6 @@ namespace TactiX_Server.Service
 
                     // 1. 导航到目标网页
                     driver.Navigate().GoToUrl(up.Url);
-                    Thread.Sleep(7000);
                     driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(7); // 隐式等待
 
                     // 2. 定位元素并提取数据

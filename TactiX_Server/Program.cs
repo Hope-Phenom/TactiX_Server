@@ -145,10 +145,9 @@ namespace TactiX_Server
                 options.AddArgument("--headless=new");
                 options.AddArgument("--disable-gpu");
                 options.AddArgument("--no-sandbox");
-                options.AddArgument("--window-size=1920,1080");
                 options.AddArgument("--disable-extensions");
                 options.AddArgument("--enable-unsafe-swiftshader");
-                options.AddArgument("--use-gl=swiftshader");
+                options.AddArgument("--disable-3d-apis");
             });
         }
     }
