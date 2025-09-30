@@ -307,7 +307,8 @@ namespace TactiX_Server.Service
 
                     // 1. 导航到目标网页
                     driver.Navigate().GoToUrl(up.Url);
-                    driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(5); // 隐式等待
+                    Thread.Sleep(7000);
+                    driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(7); // 隐式等待
 
                     // 2. 定位元素并提取数据
                     var elements = driver.FindElements(By.CssSelector(".items__item"));

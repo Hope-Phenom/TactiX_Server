@@ -44,5 +44,24 @@ namespace TactiX_Server.Controllers
                 return StatusCode(500, "An unexpected error occurred.");
             }
         }
+
+        [HttpGet("GetNewsSys")]
+        public async Task<IActionResult> GetNewsSys()
+        {
+            try
+            {
+                var lastestRecords = await _context.NewsSysModels
+                    .OrderByDescending(e => e.DateTime)
+                    .Take(5)
+                    .ToListAsync();
+
+                return Ok(lastestRecords);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"GetNewsSys Error, ex: {ex.Message}");
+                return StatusCode(500, "An unexpected error occurred.");
+            }
+        }
     }
 }

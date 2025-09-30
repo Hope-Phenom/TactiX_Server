@@ -22,9 +22,16 @@ namespace TactiX_Server.Data
             modelBuilder.Entity<ConfigVideoUpModel>()
                 .Property(p => p.Id)
                 .ValueGeneratedOnAdd(); // 配置为添加时自动生成值（自增）
+
+            modelBuilder.Entity<NewsSysModel>()
+                .ToTable("news_sys");
+            modelBuilder.Entity<NewsSysModel>()
+                .Property(p => p.Id)
+                .ValueGeneratedOnAdd(); // 配置为添加时自动生成值（自增）
         }
 
         public DbSet<NewsCommunityModel> NewsCommunityItems { get; set; }
         public DbSet<ConfigVideoUpModel> ConfigVideoUpModels { get; set; }
+        public DbSet<NewsSysModel> NewsSysModels { get; set; }
     }
 }
