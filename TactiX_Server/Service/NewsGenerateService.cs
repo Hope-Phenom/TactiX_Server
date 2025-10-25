@@ -235,14 +235,24 @@ namespace TactiX_Server.Service
         {
             await Task.Run(async () =>
             {
+                _logger.LogInformation("Start Update videos info...");
+
                 KillAllChromeProcesses();
+                _logger.LogInformation("Chrome killed...");
+
+                _logger.LogInformation("Chrome starting...");
 
                 using var scope = _scopeFactory.CreateScope();
+#if !DEBUG
+                using var driver = new ChromeDriver("/usr/local/bin/chromedriver", _chromeOptions);
+#else
                 using var driver = new ChromeDriver(_chromeOptions);
+#endif
                 var list = new List<VideoInfo>();
 
                 // 等待Chrome启动完毕
                 Thread.Sleep(10000);
+                _logger.LogInformation("Chrome started...");
 
                 try
                 {

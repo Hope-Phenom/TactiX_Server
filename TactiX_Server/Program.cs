@@ -140,13 +140,15 @@ namespace TactiX_Server
                     ?? throw new InvalidOperationException("TACTIX_CONNCTION_STRINGS environment variable is required");
             });
 
-            builder.Services.Configure<ChromeOptions>(options => 
+            builder.Services.Configure<ChromeOptions>(options =>
             {
-                options.AddArgument("--headless=new");
-                options.AddArgument("--disable-gpu");
+                options.AddArgument("--headless");
                 options.AddArgument("--no-sandbox");
+                options.AddArgument("--disable-dev-shm-usage");
+                options.AddArgument("--disable-gpu");
                 options.AddArgument("--disable-extensions");
                 options.AddArgument("--enable-unsafe-swiftshader");
+                options.AddArgument("--window-size=1920,1080");
                 options.AddArgument("--disable-3d-apis");
             });
         }
