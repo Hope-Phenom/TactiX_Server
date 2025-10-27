@@ -285,6 +285,13 @@ namespace TactiX_Server.Service
 
                     driver.Quit();
 
+                    // 条目少于6个说明抓取失败，跳过本次数据更新
+                    if (sortedVideos.Count < 6)
+                    {
+                        _logger.LogInformation("Update bilibili video fail.");
+                        return;
+                    }
+
                     var record = new NewsCommunityModel()
                     {
                          Type = 1,
