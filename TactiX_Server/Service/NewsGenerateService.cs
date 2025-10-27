@@ -52,8 +52,8 @@ namespace TactiX_Server.Service
                 await UpdateCommunityScboyccNews();
                 await UpdateBiliBiliVideo();
 
-                // 每8小时执行一次
-                await Task.Delay(TimeSpan.FromHours(8), stoppingToken);
+                // 每2小时执行一次
+                await Task.Delay(TimeSpan.FromHours(2), stoppingToken);
             }
         }
 
