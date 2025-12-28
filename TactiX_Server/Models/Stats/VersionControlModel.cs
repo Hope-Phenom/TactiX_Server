@@ -14,22 +14,27 @@ namespace TactiX_Server.Models.Stats
         /// <summary>
         /// 版本号
         /// </summary>
+        [Column("version")]
         public required string Version { get; set; }
         /// <summary>
         /// 是否被禁用
         /// </summary>
+        [Column("banned")]
         public bool Banned { get; set; }
         /// <summary>
         /// 是否需要强制升级
         /// </summary>
-        public bool Force_Upgrade { get; set; }
+        [Column("force_upgrade")]
+        public bool ForceUpgrade { get; set; }
         /// <summary>
         /// 发布时间
         /// </summary>
-        public DateTime Release_Time { get; set; }
+        [Column("release_time")]
+        public DateTime ReleaseTime { get; set; }
         /// <summary>
         /// 发布地址
         /// </summary>
-        public required string Release_Url { get; set; }
+        [Column("release_url")]
+        public required string ReleaseUrl { get; set; }
     }
 }

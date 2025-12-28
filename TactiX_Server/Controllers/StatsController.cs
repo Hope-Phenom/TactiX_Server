@@ -87,8 +87,8 @@ namespace TactiX_Server.Controllers
                 { 
                     LastestVersion = lastest.Version,
                     Banned = currVer.Banned,
-                    Force_Upgrade = lastest.Force_Upgrade,
-                    Release_Url = lastest.Release_Url
+                    ForceUpgrade = lastest.ForceUpgrade,
+                    ReleaseUrl = lastest.ReleaseUrl
                 };
 
                 return Ok(resp);

@@ -17,10 +17,10 @@
         /// <summary>
         /// 是否要进行强制升级
         /// </summary>
-        public bool Force_Upgrade { get; set; }
+        public bool ForceUpgrade { get; set; }
         /// <summary>
         /// 发布地址
         /// </summary>
-        public required string Release_Url { get; set; }
+        public required string ReleaseUrl { get; set; }
     }
 }

@@ -17,14 +17,17 @@ namespace TactiX_Server.Models.News
         /// <summary>
         /// 名称
         /// </summary>
+        [Column("name")]
         public string Name { get; set; } = string.Empty;
         /// <summary>
         /// 类型，0-Bilibili
         /// </summary>
+        [Column("type")]
         public int Type { get; set; }
         /// <summary>
         /// 地址
         /// </summary>
+        [Column("url")]
         public string Url { get; set; } = string.Empty;
     }
 }
