@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Support.UI;
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
@@ -264,7 +265,7 @@ namespace TactiX_Server.Service
                     foreach (var up in ups)
                     {
                         list.AddRange(await ResolveBiliBiliSpace(driver, up));
-                        Thread.Sleep(1000);
+                        Thread.Sleep(10000);
                     }
 
                     // 获取当前时间快照（用于统一时间基准）
@@ -325,37 +326,75 @@ namespace TactiX_Server.Service
                 {
                     var list = new List<VideoInfo>();
 
+                    // 设置合理的超时时间
+                    driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(30);
+                    driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(10);
+
                     // 1. 导航到目标网页
                     driver.Navigate().GoToUrl(up.Url);
-                    driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(7); // 隐式等待
+
+                    // 使用显式等待确保页面加载完成
+                    var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(30))
+                    {
+                        PollingInterval = TimeSpan.FromSeconds(2)
+                    };
+
+                    // 等待直到页面加载完成
+                    wait.Until(d =>
+                    {
+                        try
+                        {
+                            return ((IJavaScriptExecutor)d).ExecuteScript("return document.readyState")?.ToString() == "complete";
+                        }
+                        catch
+                        {
+                            return false;
+                        }
+                    });
+
+                    // 等待视频容器出现
+                    wait.Until(d => d.FindElements(By.CssSelector(".items__item")).Count > 0);
+
+                    // 滚动页面以触发懒加载
+                    IJavaScriptExecutor js = driver;
+                    js.ExecuteScript("window.scrollTo(0, document.body.scrollHeight / 2);");
+                    Thread.Sleep(2000);
+                    js.ExecuteScript("window.scrollTo(0, document.body.scrollHeight);");
+                    Thread.Sleep(2000);
 
                     // 2. 定位元素并提取数据
                     var elements = driver.FindElements(By.CssSelector(".items__item"));
 
-                    foreach (var element in elements)
+                    foreach (var element in elements.Take(15))
                     {
                         try
                         {
+                            // 使用显式等待获取每个元素
+                            var elementWait = new WebDriverWait(driver, TimeSpan.FromSeconds(10))
+                            {
+                                PollingInterval = TimeSpan.FromMilliseconds(1000)
+                            };
+
                             // 封面图
-                            var img = element.FindElement(By.TagName("img"));
-                            if (img == null) continue;
+                            var img = elementWait.Until(d => element.FindElement(By.TagName("img")));
                             var imgSrc = img.GetAttribute("src") ?? string.Empty;
-                            var coverUrl = imgSrc.Substring(0, imgSrc.IndexOf("@"));
+                            var coverUrl = imgSrc.Contains("@") 
+                                ? imgSrc.Substring(0, imgSrc.IndexOf("@")) 
+                                : imgSrc;
 
                             // 发布日期
-                            var subtitle = element.FindElement(By.ClassName("bili-video-card__subtitle"));
-                            if (subtitle == null) continue;
-                            var dateSpan = subtitle.FindElement(By.TagName("span"));
+                            var dateSpan = elementWait.Until(d =>
+                                element.FindElement(By.CssSelector(".bili-video-card__subtitle span")));
                             var dateText = dateSpan.Text;
 
                             // 标题
-                            var title = element.FindElement(By.ClassName("bili-video-card__title"));
-                            if (title == null) continue;
-                            var titleText = title.GetAttribute("title") ?? string.Empty;
+                            var title = elementWait.Until(d =>
+                                element.FindElement(By.CssSelector(".bili-video-card__title")));
+                            var titleText = title.GetAttribute("title") ?? title.Text;
 
                             // 链接
-                            var alink = title.FindElement(By.TagName("a"));
-                            if (alink == null) continue;
+                            var alink = elementWait.Until(d =>
+                                title.FindElement(By.TagName("a")));
                             var linkText = alink.GetAttribute("href") ?? string.Empty;
 
                             var info = new VideoInfo()
@@ -381,7 +420,7 @@ namespace TactiX_Server.Service
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"ResolveBiliBiliSpace 发生错误: {ex.Message}");
+                    _logger.LogError($"ResolveBiliBiliSpace 发生错误: {ex}");
                     return new List<VideoInfo>();
                 }
             });

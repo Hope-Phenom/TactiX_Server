@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 using NLog;
 using NLog.Web;
+using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 
 using TactiX_Server.Data;
@@ -142,14 +143,30 @@ namespace TactiX_Server
 
             builder.Services.Configure<ChromeOptions>(options =>
             {
-                options.AddArgument("--headless");
+                options.AddArgument("--headless=new");  // 使用新的Headless模式
                 options.AddArgument("--no-sandbox");
                 options.AddArgument("--disable-dev-shm-usage");
                 options.AddArgument("--disable-gpu");
                 options.AddArgument("--disable-extensions");
-                options.AddArgument("--enable-unsafe-swiftshader");
+                options.AddArgument("--disable-software-rasterizer");
+                options.AddArgument("--disable-features=VizDisplayCompositor");
+                options.AddArgument("--disable-setuid-sandbox");
+                options.AddArgument("--single-process");
+                options.AddArgument("--disable-blink-features=AutomationControlled");
+                options.AddArgument("--disable-web-security");
+                options.AddArgument("--ignore-certificate-errors");
+                options.AddArgument("--allow-running-insecure-content");
+                options.AddArgument("--disable-notifications");
+                options.AddArgument("--disable-popup-blocking");
+                options.AddArgument("--disable-infobars");
                 options.AddArgument("--window-size=1920,1080");
-                options.AddArgument("--disable-3d-apis");
+                options.AddArgument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+                options.AddExcludedArgument("enable-automation");
+                options.AddAdditionalOption("useAutomationExtension", false);
+
+                // 性能优化
+                options.PageLoadStrategy = PageLoadStrategy.Normal;
+                options.UnhandledPromptBehavior = UnhandledPromptBehavior.Accept;
             });
         }
     }
