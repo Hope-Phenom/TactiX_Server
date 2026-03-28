@@ -13,7 +13,7 @@ namespace TactiX_Server.Models.Stats
         /// 主索引
         /// </summary>
         [Key]
-        public uint Id { get; set; }
+        public long Id { get; set; }
         /// <summary>
         /// 错误代码
         /// </summary>
@@ -28,12 +28,12 @@ namespace TactiX_Server.Models.Stats
         /// 用户反馈渠道
         /// </summary>
         [Column("feedback_way")]
-        public required string Feedback_Way { get; set; }
+        public string? Feedback_Way { get; set; }
         /// <summary>
         /// 用户反馈信息
         /// </summary>
         [Column("feedback_info")]
-        public required string Feedback_Info { get; set; }
+        public string? Feedback_Info { get; set; }
         /// <summary>
         /// 反馈创建日期
         /// </summary>

@@ -44,7 +44,7 @@ namespace TactiX_Server.Service
                 if (_firstTime)
                 {
                     _logger.LogInformation("服务端启动，资讯生成延迟执行");
-                    Thread.Sleep(30000);
+                    await Task.Delay(30000, stoppingToken);
                     _firstTime = false;
                 }
 
@@ -63,170 +63,167 @@ namespace TactiX_Server.Service
         /// </summary>
         private async Task UpdateCommunityScboyccNews()
         {
-            await Task.Run(async () =>
+            try
             {
-                try
+                // 1. 创建配置了Cookie的HttpClient
+                var httpClient = _httpClientFactory.CreateClient("ForumClient");
+
+                // 创建独立的Cookie容器
+                var cookieContainer = new CookieContainer();
+                var handler = new HttpClientHandler
                 {
-                    // 1. 创建配置了Cookie的HttpClient
-                    var httpClient = _httpClientFactory.CreateClient("ForumClient");
+                    UseCookies = true,
+                    CookieContainer = cookieContainer
+                };
 
-                    // 创建独立的Cookie容器
-                    var cookieContainer = new CookieContainer();
-                    var handler = new HttpClientHandler
-                    {
-                        UseCookies = true,
-                        CookieContainer = cookieContainer
-                    };
+                // 创建使用自定义Handler的HttpClient
+                using var customHttpClient = new HttpClient(handler);
+                customHttpClient.BaseAddress = httpClient.BaseAddress;
+                customHttpClient.DefaultRequestHeaders.UserAgent.ParseAdd(httpClient.DefaultRequestHeaders.UserAgent.ToString());
+                customHttpClient.Timeout = httpClient.Timeout;
 
-                    // 创建使用自定义Handler的HttpClient
-                    using var customHttpClient = new HttpClient(handler);
-                    customHttpClient.BaseAddress = httpClient.BaseAddress;
-                    customHttpClient.DefaultRequestHeaders.UserAgent.ParseAdd(httpClient.DefaultRequestHeaders.UserAgent.ToString());
-                    customHttpClient.Timeout = httpClient.Timeout;
+                // 2. 获取登录页面并解析CSRF token
+                _logger.LogInformation("Fetching login page...");
+                var loginPageResponse = await customHttpClient.GetAsync("/?user-login.htm");
+                loginPageResponse.EnsureSuccessStatusCode();
 
-                    // 2. 获取登录页面并解析CSRF token
-                    _logger.LogInformation("Fetching login page...");
-                    var loginPageResponse = await customHttpClient.GetAsync("/?user-login.htm");
-                    loginPageResponse.EnsureSuccessStatusCode();
+                var loginPageHtml = await loginPageResponse.Content.ReadAsStringAsync();
+                var parser = new HtmlParser();
+                var loginDocument = await parser.ParseDocumentAsync(loginPageHtml);
 
-                    var loginPageHtml = await loginPageResponse.Content.ReadAsStringAsync();
-                    var parser = new HtmlParser();
-                    var loginDocument = await parser.ParseDocumentAsync(loginPageHtml);
+                // 查找CSRF token
+                var csrfToken = loginDocument
+                    .QuerySelector("input[name='csrf_token']")?
+                    .GetAttribute("value");
 
-                    // 查找CSRF token
-                    var csrfToken = loginDocument
-                        .QuerySelector("input[name='csrf_token']")?
+                if (string.IsNullOrEmpty(csrfToken))
+                {
+                    _logger.LogWarning("CSRF token not found. Trying alternative selectors...");
+                    // 尝试其他常见名称
+                    csrfToken = loginDocument
+                        .QuerySelector("input[name='authenticity_token'], input[name='_token'], input[name='csrfmiddlewaretoken']")?
                         .GetAttribute("value");
+                }
 
-                    if (string.IsNullOrEmpty(csrfToken))
+                var usr = _options.ForumUserName;
+                var pwd = _options.ForumPassword;
+
+                // 3. 准备登录表单数据
+                var formData = new Dictionary<string, string>
+                {
+                    ["mobile"] = usr,
+                    ["password"] = pwd
+                };
+
+                // 添加CSRF token（如果找到）
+                if (!string.IsNullOrEmpty(csrfToken))
+                {
+                    formData["csrf_token"] = csrfToken;
+                }
+
+                // 4. 执行登录
+                _logger.LogInformation("Attempting login...");
+                var loginContent = new FormUrlEncodedContent(formData);
+                var loginResponse = await customHttpClient.PostAsync("/?user-login.htm", loginContent);
+
+                if (!loginResponse.IsSuccessStatusCode)
+                {
+                    _logger.LogError($"Login failed with status: {loginResponse.StatusCode}");
+                }
+
+                // 5. 访问需要登录的帖子列表页面
+                _logger.LogInformation("Fetching posts page...");
+                var postsResponse = await customHttpClient.GetAsync("/?forum-1.htm");
+                postsResponse.EnsureSuccessStatusCode();
+
+                var postsHtml = await postsResponse.Content.ReadAsStringAsync();
+                var postsDocument = await parser.ParseDocumentAsync(postsHtml);
+
+                // 6. 解析帖子列表
+                var posts = new List<ForumPost>();
+                var allPostElements = postsDocument.QuerySelectorAll("li.media.thread");
+
+                // 7.使用 LINQ 过滤掉包含 top_x 类名的元素
+                var postElements = allPostElements.Where(element =>
+                {
+                    var classList = element.ClassList;
+                    return !classList.Contains("top_1") &&
+                           !classList.Contains("top_2") &&
+                           !classList.Contains("top_3");
+                });
+
+                foreach (var element in postElements)
+                {
+                    try
                     {
-                        _logger.LogWarning("CSRF token not found. Trying alternative selectors...");
-                        // 尝试其他常见名称
-                        csrfToken = loginDocument
-                            .QuerySelector("input[name='authenticity_token'], input[name='_token'], input[name='csrfmiddlewaretoken']")?
-                            .GetAttribute("value");
-                    }
+                        // 提取标题
+                        var titleElement = element.QuerySelector("div.subject > a.xs-thread-a");
+                        string title = titleElement?.TextContent.Trim() ?? string.Empty;
 
-                    var usr = _options.ForumUserName;
-                    var pwd = _options.ForumPassword;
+                        // 提取链接
+                        string url = titleElement?.GetAttribute("href") ?? string.Empty;
 
-                    // 3. 准备登录表单数据
-                    var formData = new Dictionary<string, string>
-                    {
-                        ["mobile"] = usr,
-                        ["password"] = pwd
-                    };
+                        // 提取时间 - 处理多种情况
+                        string date = "";
+                        var dateContainer = element.QuerySelector("div.d-flex.justify-content-between.small.mt-1 div:first-child");
 
-                    // 添加CSRF token（如果找到）
-                    if (!string.IsNullOrEmpty(csrfToken))
-                    {
-                        formData["csrf_token"] = csrfToken;
-                    }
-
-                    // 4. 执行登录
-                    _logger.LogInformation("Attempting login...");
-                    var loginContent = new FormUrlEncodedContent(formData);
-                    var loginResponse = await customHttpClient.PostAsync("/?user-login.htm", loginContent);
-
-                    if (!loginResponse.IsSuccessStatusCode)
-                    {
-                        _logger.LogError($"Login failed with status: {loginResponse.StatusCode}");
-                    }
-
-                    // 5. 访问需要登录的帖子列表页面
-                    _logger.LogInformation("Fetching posts page...");
-                    var postsResponse = await customHttpClient.GetAsync("/?forum-1.htm");
-                    postsResponse.EnsureSuccessStatusCode();
-
-                    var postsHtml = await postsResponse.Content.ReadAsStringAsync();
-                    var postsDocument = await parser.ParseDocumentAsync(postsHtml);
-
-                    // 6. 解析帖子列表
-                    var posts = new List<ForumPost>();
-                    var allPostElements = postsDocument.QuerySelectorAll("li.media.thread");
-
-                    // 7.使用 LINQ 过滤掉包含 top_x 类名的元素
-                    var postElements = allPostElements.Where(element =>
-                    {
-                        var classList = element.ClassList;
-                        return !classList.Contains("top_1") &&
-                               !classList.Contains("top_2") &&
-                               !classList.Contains("top_3");
-                    });
-
-                    foreach (var element in postElements)
-                    {
-                        try
+                        if (dateContainer != null)
                         {
-                            // 提取标题
-                            var titleElement = element.QuerySelector("div.subject > a.xs-thread-a");
-                            string title = titleElement?.TextContent.Trim() ?? string.Empty;
-
-                            // 提取链接
-                            string url = titleElement?.GetAttribute("href") ?? string.Empty;
-
-                            // 提取时间 - 处理多种情况
-                            string date = "";
-                            var dateContainer = element.QuerySelector("div.d-flex.justify-content-between.small.mt-1 div:first-child");
-
-                            if (dateContainer != null)
+                            // 尝试获取直接显示的时间
+                            var visibleDate = dateContainer.QuerySelector(".date.text-grey:not(.hidden-sm)");
+                            if (visibleDate != null)
                             {
-                                // 尝试获取直接显示的时间
-                                var visibleDate = dateContainer.QuerySelector(".date.text-grey:not(.hidden-sm)");
-                                if (visibleDate != null)
+                                date = visibleDate.TextContent.Trim();
+                            }
+                            else
+                            {
+                                // 尝试获取隐藏的时间（在hidden-sm类中）
+                                var hiddenDate = dateContainer.QuerySelector(".date.text-grey.hidden-sm");
+                                if (hiddenDate != null)
                                 {
-                                    date = visibleDate.TextContent.Trim();
-                                }
-                                else
-                                {
-                                    // 尝试获取隐藏的时间（在hidden-sm类中）
-                                    var hiddenDate = dateContainer.QuerySelector(".date.text-grey.hidden-sm");
-                                    if (hiddenDate != null)
-                                    {
-                                        date = hiddenDate.TextContent.Trim();
-                                    }
+                                    date = hiddenDate.TextContent.Trim();
                                 }
                             }
-
-                            // 创建帖子对象
-                            var post = new ForumPost
-                            {
-                                Title = title,
-                                Url = httpClient.BaseAddress + url,
-                                Date = date
-                            };
-
-                            posts.Add(post);
                         }
-                        catch (Exception ex)
+
+                        // 创建帖子对象
+                        var post = new ForumPost
                         {
-                            // 记录错误但继续处理其他帖子
-                            _logger.LogError($"解析帖子时出错: {ex.Message}");
-                        }
+                            Title = title,
+                            Url = httpClient.BaseAddress + url,
+                            Date = date
+                        };
+
+                        posts.Add(post);
                     }
-
-                    var record = new NewsCommunityModel()
+                    catch (Exception ex)
                     {
-                        Update_DateTime = DateTime.Now,
-                        Type = 0,
-                        Json = JsonConvert.SerializeObject(posts.Take(20).ToList())
-                    };
-
-                    using (var scope = _scopeFactory.CreateScope())
-                    {
-                        // 添加record
-                        var context = scope.ServiceProvider.GetRequiredService<NewsDbContext>();
-                        context.NewsCommunityItems.Add(record);
-                        await context.SaveChangesAsync();
+                        // 记录错误但继续处理其他帖子
+                        _logger.LogError($"解析帖子时出错: {ex.Message}");
                     }
-
-                    _logger.LogInformation("Update forum posts success.");
                 }
-                catch (Exception ex)
+
+                var record = new NewsCommunityModel()
                 {
-                    _logger.LogError(ex, "Error fetching forum posts");
+                    Update_DateTime = DateTime.Now,
+                    Type = 0,
+                    Json = JsonConvert.SerializeObject(posts.Take(20).ToList())
+                };
+
+                using (var scope = _scopeFactory.CreateScope())
+                {
+                    // 添加record
+                    var context = scope.ServiceProvider.GetRequiredService<NewsDbContext>();
+                    context.NewsCommunityItems.Add(record);
+                    await context.SaveChangesAsync();
                 }
-            });
+
+                _logger.LogInformation("Update forum posts success.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching forum posts");
+            }
         }
         /// <summary>
         /// 获取数据库配置的Bilibili视频主的更新情况
@@ -234,82 +231,74 @@ namespace TactiX_Server.Service
         /// <returns></returns>
         private async Task UpdateBiliBiliVideo()
         {
-            await Task.Run(async () =>
-            {
-                _logger.LogInformation("Start Update videos info...");
+            _logger.LogInformation("Start Update videos info...");
 
-                KillAllChromeProcesses();
-                _logger.LogInformation("Chrome killed...");
+            _logger.LogInformation("Chrome starting...");
 
-                _logger.LogInformation("Chrome starting...");
-
-                using var scope = _scopeFactory.CreateScope();
+            using var scope = _scopeFactory.CreateScope();
 #if !DEBUG
-                using var driver = new ChromeDriver("/usr/local/bin/chromedriver", _chromeOptions);
+            using var driver = new ChromeDriver("/usr/local/bin/chromedriver", _chromeOptions);
 #else
-                using var driver = new ChromeDriver(_chromeOptions);
+            using var driver = new ChromeDriver(_chromeOptions);
 #endif
-                var list = new List<VideoInfo>();
+            var list = new List<VideoInfo>();
 
-                // 等待Chrome启动完毕
-                Thread.Sleep(10000);
-                _logger.LogInformation("Chrome started...");
+            // 等待Chrome启动完毕
+            await Task.Delay(10000);
+            _logger.LogInformation("Chrome started...");
 
-                try
+            try
+            {
+                var context = scope.ServiceProvider.GetRequiredService<NewsDbContext>();
+                var ups = await context.ConfigVideoUpModels
+                    .Where(e => e.Type == 0)
+                    .ToListAsync();
+
+                foreach (var up in ups)
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<NewsDbContext>();
-                    var ups = await context.ConfigVideoUpModels
-                        .Where(e => e.Type == 0)
-                        .ToListAsync();
-
-                    foreach (var up in ups)
-                    {
-                        list.AddRange(await ResolveBiliBiliSpace(driver, up));
-                        Thread.Sleep(10000);
-                    }
-
-                    // 获取当前时间快照（用于统一时间基准）
-                    DateTime now = DateTime.Now;
-
-                    // 解析并排序
-                    var sortedVideos = list
-                        .Select(v => new
-                        {
-                            Video = v,
-                            SortKey = ParsePublishDate(v.PublishDate, now) // 解析为排序键
-                        })
-                        .OrderBy(x => x.SortKey.Category)  // 先按类别排序
-                        .ThenBy(x => x.SortKey.Value)      // 再按类别内规则排序
-                        .Select(x => x.Video)              // 还原为VideoInfo
-                        .Take(6)                           // 取前6项
-                        .ToList();
-
-                    driver.Quit();
-
-                    // 条目少于6个说明抓取失败，跳过本次数据更新
-                    if (sortedVideos.Count < 6)
-                    {
-                        _logger.LogInformation("Update bilibili video fail.");
-                        return;
-                    }
-
-                    var record = new NewsCommunityModel()
-                    {
-                         Type = 1,
-                         Update_DateTime = now,
-                         Json = JsonConvert.SerializeObject(sortedVideos)
-                    };
-
-                    context.NewsCommunityItems.Add(record);
-                    await context.SaveChangesAsync();
-
-                    _logger.LogInformation("Update bilibili video success.");
+                    list.AddRange(await ResolveBiliBiliSpace(driver, up));
+                    await Task.Delay(10000);
                 }
-                catch (Exception ex)
+
+                // 获取当前时间快照（用于统一时间基准）
+                DateTime now = DateTime.Now;
+
+                // 解析并排序
+                var sortedVideos = list
+                    .Select(v => new
+                    {
+                        Video = v,
+                        SortKey = ParsePublishDate(v.PublishDate, now) // 解析为排序键
+                    })
+                    .OrderBy(x => x.SortKey.Category)  // 先按类别排序
+                    .ThenBy(x => x.SortKey.Value)      // 再按类别内规则排序
+                    .Select(x => x.Video)              // 还原为VideoInfo
+                    .Take(6)                           // 取前6项
+                    .ToList();
+
+                // 条目少于6个说明抓取失败，跳过本次数据更新
+                if (sortedVideos.Count < 6)
                 {
-                    _logger.LogError(ex, "Error fetching bilibili video info");
+                    _logger.LogInformation("Update bilibili video fail.");
+                    return;
                 }
-            });
+
+                var record = new NewsCommunityModel()
+                {
+                     Type = 1,
+                     Update_DateTime = now,
+                     Json = JsonConvert.SerializeObject(sortedVideos)
+                };
+
+                context.NewsCommunityItems.Add(record);
+                await context.SaveChangesAsync();
+
+                _logger.LogInformation("Update bilibili video success.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching bilibili video info");
+            }
         }
 
         /// <summary>
@@ -320,11 +309,9 @@ namespace TactiX_Server.Service
         /// <returns>视频信息列表</returns>
         private async Task<List<VideoInfo>> ResolveBiliBiliSpace(ChromeDriver driver, ConfigVideoUpModel up)
         {
-            return await Task.Run(() =>
+            try
             {
-                try
-                {
-                    var list = new List<VideoInfo>();
+                var list = new List<VideoInfo>();
 
                     // 设置合理的超时时间
                     driver.Manage().Timeouts().PageLoad = TimeSpan.FromSeconds(30);
@@ -423,7 +410,6 @@ namespace TactiX_Server.Service
                     _logger.LogError($"ResolveBiliBiliSpace 发生错误: {ex}");
                     return new List<VideoInfo>();
                 }
-            });
         }
         /// <summary>
         /// 解析Bilibili投稿日期并生成排序键
