@@ -23,22 +23,22 @@ namespace TactiX_Server
             {
                 var builder = WebApplication.CreateBuilder(args);
 
-                // Ìí¼ÓÅäÖÃ
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                 builder.Configuration
                     .AddJsonFile("appsettings.json", optional: true)
                     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
                     .AddEnvironmentVariables()
                     .AddUserSecrets<Program>(optional: true);
 
-                // ¼ì²é²¢´¦ÀíÅäÖÃ
+                // ï¿½ï¿½é²¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                 HandleConfigure(builder);
 
                 // Add services to the container.
                 builder.Services.AddControllers();
 
-                // ×¢²áDbContextµ½·þÎñÈÝÆ÷
+                // ×¢ï¿½ï¿½DbContextï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                 RegisterDbContext(builder);
-                // ×¢²áHttpClient
+                // ×¢ï¿½ï¿½HttpClient
                 RegisterHttpClient(builder);
 
                 // Add services to the container.
@@ -48,7 +48,7 @@ namespace TactiX_Server
                 builder.Services.AddEndpointsApiExplorer();
                 builder.Services.AddSwaggerGen();
 
-                // ÆôÓÃÑ¹Ëõ
+                // ï¿½ï¿½ï¿½ï¿½Ñ¹ï¿½ï¿½
                 builder.Services.AddResponseCompression(options => 
                 {
                     options.Providers.Add<GzipCompressionProvider>();
@@ -59,7 +59,7 @@ namespace TactiX_Server
                     options.Level = System.IO.Compression.CompressionLevel.Fastest;
                 });
 
-                // Ìí¼ÓNLog·þÎñ£¬×Ô¶¯´Ónlog.configÎÄ¼þ¶ÁÈ¡ÅäÖÃ
+                // ï¿½ï¿½ï¿½ï¿½NLogï¿½ï¿½ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½nlog.configï¿½Ä¼ï¿½ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½
                 builder.Logging.ClearProviders();
                 builder.Host.UseNLog();
 
@@ -71,6 +71,17 @@ namespace TactiX_Server
                     app.UseSwagger();
                     app.UseSwaggerUI();
                 }
+
+                // å…¨å±€å¼‚å¸¸å¤„ç†
+                app.UseExceptionHandler("/error");
+                app.Map("/error", (HttpContext context) =>
+                {
+                    var exception = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+                    return Results.Problem(
+                        title: "An error occurred",
+                        detail: exception?.Message,
+                        statusCode: 500);
+                });
 
                 app.UseHttpsRedirection();
                 if (!app.Environment.IsDevelopment())
@@ -95,26 +106,36 @@ namespace TactiX_Server
         }
 
         /// <summary>
-        /// ×¢²áÊý¾Ý¿âÁ¬½Ó
+        /// ×¢ï¿½ï¿½ï¿½ï¿½ï¿½Ý¿ï¿½ï¿½ï¿½ï¿½ï¿½
         /// </summary>
         private static void RegisterDbContext(WebApplicationBuilder builder)
         {
             var dbConnectionString = builder.Configuration["TACTIX_CONNCTION_STRINGS"];
 
-            // Í³¼ÆÓë×´Ì¬Ïà¹Ø
-            builder.Services.AddDbContext<StatsDbContext>(options =>
+            // Í³ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½
+            builder.Services.AddDbContextPool<StatsDbContext>(options =>
             {
-                options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString));
-            });
-            // ÐÂÎÅÏà¹Ø
-            builder.Services.AddDbContext<NewsDbContext>(options =>
+                options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString),
+                    mysqlOptions =>
+                    {
+                        mysqlOptions.EnableRetryOnFailure(maxRetryCount: 3);
+                        mysqlOptions.CommandTimeout(60);
+                    });
+            }, poolSize: 128);
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+            builder.Services.AddDbContextPool<NewsDbContext>(options =>
             {
-                options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString));
-            });
+                options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString),
+                    mysqlOptions =>
+                    {
+                        mysqlOptions.EnableRetryOnFailure(maxRetryCount: 3);
+                        mysqlOptions.CommandTimeout(60);
+                    });
+            }, poolSize: 128);
         }
 
         /// <summary>
-        /// ×¢²áHttpClient
+        /// ×¢ï¿½ï¿½HttpClient
         /// </summary>
         private static void RegisterHttpClient(WebApplicationBuilder builder)
         {
@@ -127,7 +148,7 @@ namespace TactiX_Server
         }
 
         /// <summary>
-        /// ½âÎöÅäÖÃ
+        /// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         /// </summary>
         private static void HandleConfigure(WebApplicationBuilder builder)
         {
@@ -143,7 +164,7 @@ namespace TactiX_Server
 
             builder.Services.Configure<ChromeOptions>(options =>
             {
-                options.AddArgument("--headless=new");  // Ê¹ÓÃÐÂµÄHeadlessÄ£Ê½
+                options.AddArgument("--headless=new");  // Ê¹ï¿½ï¿½ï¿½Âµï¿½HeadlessÄ£Ê½
                 options.AddArgument("--no-sandbox");
                 options.AddArgument("--disable-dev-shm-usage");
                 options.AddArgument("--disable-gpu");
@@ -164,7 +185,7 @@ namespace TactiX_Server
                 options.AddExcludedArgument("enable-automation");
                 options.AddAdditionalOption("useAutomationExtension", false);
 
-                // ÐÔÄÜÓÅ»¯
+                // ï¿½ï¿½ï¿½ï¿½ï¿½Å»ï¿½
                 options.PageLoadStrategy = PageLoadStrategy.Normal;
                 options.UnhandledPromptBehavior = UnhandledPromptBehavior.Accept;
             });

@@ -31,6 +31,7 @@ namespace TactiX_Server.Controllers
             try
             {
                 var results = await _context.NewsCommunityItems
+                    .AsNoTracking()
                     .Where(n => n.Type == 0 || n.Type == 1)
                     .GroupBy(n => n.Type)
                     .Select(g => g.OrderByDescending(n => n.Update_DateTime).FirstOrDefault())
@@ -51,6 +52,7 @@ namespace TactiX_Server.Controllers
             try
             {
                 var lastestRecords = await _context.NewsSysModels
+                    .AsNoTracking()
                     .OrderByDescending(e => e.DateTime)
                     .Take(5)
                     .ToListAsync();

@@ -76,10 +76,10 @@ namespace TactiX_Server.Controllers
                 }
 
                 var lastest = await QueryLastestVersionAsync();
-                if (lastest == null) return StatusCode(500, "Can't find any lastest version data.");
+                if (lastest == null) return NotFound("Can't find any lastest version data.");
 
                 var currVer = await QueryVersionByVersionAsync(req.Version);
-                if (currVer == null) return StatusCode(500, "Can't find version data by version string.");
+                if (currVer == null) return NotFound("Can't find version data by version string.");
 
                 var compareResult = Tools.CompareVersion(req.Version, lastest.Version);
 
@@ -111,13 +111,10 @@ namespace TactiX_Server.Controllers
         /// <returns>版本记录条目</returns>
         private async Task<VersionControlModel?> QueryLastestVersionAsync()
         {
-            var maxId = await _context.VersionControls
-                .MaxAsync(v => (int?)v.Id);
-
-            if (!maxId.HasValue) return null;
-
             return await _context.VersionControls
-                .FirstOrDefaultAsync(v => v.Id == maxId.Value);
+                .AsNoTracking()
+                .OrderByDescending(v => v.Id)
+                .FirstOrDefaultAsync();
         }
         /// <summary>
         /// 根据传入的版本号确定其状态
@@ -127,6 +124,7 @@ namespace TactiX_Server.Controllers
         private async Task<VersionControlModel?> QueryVersionByVersionAsync(string version)
         {
             return await _context.VersionControls
+                .AsNoTracking()
                 .FirstOrDefaultAsync(v => v.Version == version);
         }
 

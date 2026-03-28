@@ -10,7 +10,7 @@ namespace TactiX_Server.Models.Stats
         /// 主索引
         /// </summary>
         [Key]
-        public uint Id { get; set; }
+        public long Id { get; set; }
         /// <summary>
         /// 版本号
         /// </summary>
