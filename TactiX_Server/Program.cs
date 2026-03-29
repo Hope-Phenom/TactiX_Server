@@ -7,7 +7,10 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 
 using TactiX_Server.Data;
+using TactiX_Server.Middleware;
+using TactiX_Server.Models.Config;
 using TactiX_Server.Service;
+using TactiX_Server.Services;
 
 namespace TactiX_Server
 {
@@ -23,22 +26,24 @@ namespace TactiX_Server
             {
                 var builder = WebApplication.CreateBuilder(args);
 
-                // ��������
+                // Configuration
                 builder.Configuration
                     .AddJsonFile("appsettings.json", optional: true)
                     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true)
                     .AddEnvironmentVariables()
                     .AddUserSecrets<Program>(optional: true);
 
-                // ��鲢��������
+                // Handle configure
                 HandleConfigure(builder);
 
                 // Add services to the container.
                 builder.Services.AddControllers();
 
-                // ע��DbContext����������
+                // Register DbContext
                 RegisterDbContext(builder);
-                // ע��HttpClient
+                // Register Tactics Hall Services
+                RegisterTacticsHallServices(builder);
+                // Register HttpClient
                 RegisterHttpClient(builder);
 
                 // Add services to the container.
@@ -48,18 +53,18 @@ namespace TactiX_Server
                 builder.Services.AddEndpointsApiExplorer();
                 builder.Services.AddSwaggerGen();
 
-                // ����ѹ��
-                builder.Services.AddResponseCompression(options => 
+                // Response compression
+                builder.Services.AddResponseCompression(options =>
                 {
                     options.Providers.Add<GzipCompressionProvider>();
                     options.EnableForHttps = true;
                 });
-                builder.Services.Configure<GzipCompressionProviderOptions>(options => 
+                builder.Services.Configure<GzipCompressionProviderOptions>(options =>
                 {
                     options.Level = System.IO.Compression.CompressionLevel.Fastest;
                 });
 
-                // ����NLog�����Զ���nlog.config�ļ���ȡ����
+                // Configure NLog
                 builder.Logging.ClearProviders();
                 builder.Host.UseNLog();
 
@@ -72,7 +77,7 @@ namespace TactiX_Server
                     app.UseSwaggerUI();
                 }
 
-                // 全局异常处理
+                // Global exception handler
                 app.UseExceptionHandler("/error");
                 app.Map("/error", (HttpContext context) =>
                 {
@@ -89,7 +94,11 @@ namespace TactiX_Server
                     app.UseResponseCompression();
                 }
                 app.UseStaticFiles();
+
+                // Add authentication and authorization
+                app.UseAuthentication();
                 app.UseAuthorization();
+
                 app.MapControllers();
                 app.Run();
             }
@@ -99,20 +108,20 @@ namespace TactiX_Server
                 throw;
             }
             finally
-            { 
+            {
                 // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
                 LogManager.Shutdown();
             }
         }
 
         /// <summary>
-        /// ע�����ݿ�����
+        /// Register DbContext
         /// </summary>
         private static void RegisterDbContext(WebApplicationBuilder builder)
         {
             var dbConnectionString = builder.Configuration["TACTIX_CONNCTION_STRINGS"];
 
-            // ͳ����״̬���
+            // Stats DbContext
             builder.Services.AddDbContextPool<StatsDbContext>(options =>
             {
                 options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString),
@@ -122,8 +131,20 @@ namespace TactiX_Server
                         mysqlOptions.CommandTimeout(60);
                     });
             }, poolSize: 128);
-            // �������
+
+            // News DbContext
             builder.Services.AddDbContextPool<NewsDbContext>(options =>
+            {
+                options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString),
+                    mysqlOptions =>
+                    {
+                        mysqlOptions.EnableRetryOnFailure(maxRetryCount: 3);
+                        mysqlOptions.CommandTimeout(60);
+                    });
+            }, poolSize: 128);
+
+            // Tactics Hall DbContext
+            builder.Services.AddDbContextPool<TacticsDbContext>(options =>
             {
                 options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString),
                     mysqlOptions =>
@@ -135,7 +156,30 @@ namespace TactiX_Server
         }
 
         /// <summary>
-        /// ע��HttpClient
+        /// Register Tactics Hall Services
+        /// </summary>
+        private static void RegisterTacticsHallServices(WebApplicationBuilder builder)
+        {
+            // Configuration
+            builder.Services.Configure<TacticsHallConfig>(builder.Configuration.GetSection("TacticsHall"));
+            builder.Services.Configure<JwtConfig>(builder.Configuration.GetSection("Jwt"));
+
+            // JWT Authentication
+            builder.Services.AddJwtAuthentication(builder.Configuration);
+
+            // Services
+            builder.Services.AddScoped<IJwtService, JwtService>();
+            builder.Services.AddScoped<IAdminService, AdminService>();
+
+            // OAuth Providers
+            builder.Services.AddScoped<IOAuthProvider, DevAuthService>();
+            // TODO: Add QQ and WeChat OAuth services
+            // builder.Services.AddScoped<IOAuthProvider, QQAuthService>();
+            // builder.Services.AddScoped<IOAuthProvider, WechatAuthService>();
+        }
+
+        /// <summary>
+        /// Register HttpClient
         /// </summary>
         private static void RegisterHttpClient(WebApplicationBuilder builder)
         {
@@ -148,7 +192,7 @@ namespace TactiX_Server
         }
 
         /// <summary>
-        /// ��������
+        /// Handle Configure
         /// </summary>
         private static void HandleConfigure(WebApplicationBuilder builder)
         {
@@ -164,7 +208,7 @@ namespace TactiX_Server
 
             builder.Services.Configure<ChromeOptions>(options =>
             {
-                options.AddArgument("--headless=new");  // ʹ���µ�Headlessģʽ
+                options.AddArgument("--headless=new");
                 options.AddArgument("--no-sandbox");
                 options.AddArgument("--disable-dev-shm-usage");
                 options.AddArgument("--disable-gpu");
@@ -185,7 +229,6 @@ namespace TactiX_Server
                 options.AddExcludedArgument("enable-automation");
                 options.AddAdditionalOption("useAutomationExtension", false);
 
-                // �����Ż�
                 options.PageLoadStrategy = PageLoadStrategy.Normal;
                 options.UnhandledPromptBehavior = UnhandledPromptBehavior.Accept;
             });
