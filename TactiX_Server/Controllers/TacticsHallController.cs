@@ -173,7 +173,7 @@ public class TacticsHallController : ControllerBase
             ModName = file.ModName,
             DownloadCount = (int)file.DownloadCount,
             LikeCount = (int)file.LikeCount,
-            CurrentVersion = version,
+            CurrentVersion = (int)version,
             CreatedAt = file.CreatedAt,
             UpdatedAt = file.UpdatedAt
         };

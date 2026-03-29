@@ -80,7 +80,7 @@ public class TacticsFileService : ITacticsFileService
             var permissionResult = await _permissionService.CanUpload(userId, fileStream.Length);
             if (!permissionResult.Success)
             {
-                return UploadResult.Fail(permissionResult.ErrorMessage);
+                return UploadResult.Failed(permissionResult.ErrorMessage);
             }
 
             // 2. 保存到临时文件
@@ -101,7 +101,7 @@ public class TacticsFileService : ITacticsFileService
             {
                 // 将文件移动到隔离区
                 await QuarantineFileAsync(tempFilePath, fileName, validationResult.Errors);
-                return UploadResult.Fail($"文件验证失败: {string.Join(", ", validationResult.Errors)}");
+                return UploadResult.Failed($"文件验证失败: {string.Join(", ", validationResult.Errors)}");
             }
 
             // 4. 检查重复文件
@@ -114,7 +114,7 @@ public class TacticsFileService : ITacticsFileService
                 if (existingFile != null)
                 {
                     File.Delete(tempFilePath);
-                    return UploadResult.Fail($"该文件已存在，配装码: {existingFile.ShareCode}");
+                    return UploadResult.Failed($"该文件已存在，配装码: {existingFile.ShareCode}");
                 }
             }
 
@@ -129,7 +129,7 @@ public class TacticsFileService : ITacticsFileService
                 Description = parsedFile.Description,
                 AuthorName = parsedFile.Author,
                 ModName = parsedFile.ModName,
-                TacticType = (uint)parsedFile.TacticType,
+                TacticType = (byte)parsedFile.TacticType,
                 RacePlayed = parsedFile.RacePlayed switch
                 {
                     "Protoss" => "P",
@@ -141,7 +141,7 @@ public class TacticsFileService : ITacticsFileService
                 FileSize = (uint)new FileInfo(tempFilePath).Length,
                 FileHash = validationResult.FileHash,
                 Status = "pending", // 所有文件都需要审核
-                IsLatestVersion = 1,
+                IsLatestVersion = true,
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -187,7 +187,7 @@ public class TacticsFileService : ITacticsFileService
                 "用户 {UserId} 上传了战术文件，配装码: {ShareCode}",
                 userId, shareCode);
 
-            return UploadResult.Success(shareCode, tacticsFile.Id);
+            return UploadResult.Succeeded(shareCode, tacticsFile.Id);
         }
         catch (Exception ex)
         {
@@ -199,7 +199,7 @@ public class TacticsFileService : ITacticsFileService
                 File.Delete(tempFilePath);
             }
 
-            return UploadResult.Fail($"上传失败: {ex.Message}");
+            return UploadResult.Failed($"上传失败: {ex.Message}");
         }
     }
 
@@ -216,14 +216,14 @@ public class TacticsFileService : ITacticsFileService
 
             if (existingFile == null)
             {
-                return UploadResult.Fail("战术文件不存在");
+                return UploadResult.Failed("战术文件不存在");
             }
 
             // 2. 权限检查
             var permissionResult = await _permissionService.CanUploadVersion(userId, existingFile.Id);
             if (!permissionResult.Success)
             {
-                return UploadResult.Fail(permissionResult.ErrorMessage);
+                return UploadResult.Failed(permissionResult.ErrorMessage);
             }
 
             // 3. 保存到临时文件
@@ -242,14 +242,14 @@ public class TacticsFileService : ITacticsFileService
             if (!validationResult.IsValid)
             {
                 await QuarantineFileAsync(tempFilePath, "version.tactix", validationResult.Errors);
-                return UploadResult.Fail($"文件验证失败: {string.Join(", ", validationResult.Errors)}");
+                return UploadResult.Failed($"文件验证失败: {string.Join(", ", validationResult.Errors)}");
             }
 
             // 5. 检查文件是否与原版本相同
             if (validationResult.FileHash == existingFile.FileHash)
             {
                 File.Delete(tempFilePath);
-                return UploadResult.Fail("新版本与当前版本内容相同");
+                return UploadResult.Failed("新版本与当前版本内容相同");
             }
 
             // 6. 获取下一个版本号
@@ -263,7 +263,7 @@ public class TacticsFileService : ITacticsFileService
             var now = DateTime.UtcNow;
 
             // 7. 移动文件到正式存储
-            var finalFilePath = GetStoragePath(shareCode, newVersionNumber);
+            var finalFilePath = GetStoragePath(shareCode, (int)newVersionNumber);
             Directory.CreateDirectory(Path.GetDirectoryName(finalFilePath)!);
             File.Move(tempFilePath, finalFilePath);
 
@@ -300,7 +300,7 @@ public class TacticsFileService : ITacticsFileService
                 "用户 {UserId} 上传了战术文件 {ShareCode} 的新版本 {Version}",
                 userId, shareCode, newVersionNumber);
 
-            return UploadResult.Success(shareCode, existingFile.Id, newVersionNumber);
+            return UploadResult.Succeeded(shareCode, existingFile.Id, (int)newVersionNumber);
         }
         catch (Exception ex)
         {
@@ -311,7 +311,7 @@ public class TacticsFileService : ITacticsFileService
                 File.Delete(tempFilePath);
             }
 
-            return UploadResult.Fail($"上传失败: {ex.Message}");
+            return UploadResult.Failed($"上传失败: {ex.Message}");
         }
     }
 
@@ -336,7 +336,7 @@ public class TacticsFileService : ITacticsFileService
 
         return await _context.TacticsFileVersions
             .AsNoTracking()
-            .Where(v => v.FileId == file.Id && v.IsDeleted == 0)
+            .Where(v => v.FileId == file.Id && v.IsDeleted == false)
             .OrderBy(v => v.VersionNumber)
             .ToListAsync();
     }
@@ -362,13 +362,13 @@ public class TacticsFileService : ITacticsFileService
         {
             var version = await _context.TacticsFileVersions
                 .AsNoTracking()
-                .FirstOrDefaultAsync(v => v.FileId == file.Id && v.VersionNumber == versionNumber.Value && v.IsDeleted == 0);
+                .FirstOrDefaultAsync(v => v.FileId == file.Id && v.VersionNumber == versionNumber.Value && !v.IsDeleted);
 
             if (version == null)
                 return null;
 
             filePath = version.FilePath;
-            actualVersionNumber = version.VersionNumber;
+            actualVersionNumber = (int)version.VersionNumber;
         }
         else
         {
@@ -397,13 +397,13 @@ public class TacticsFileService : ITacticsFileService
             .FirstOrDefaultAsync(f => f.ShareCode == shareCode);
 
         if (file == null)
-            return DeleteResult.Fail("战术文件不存在");
+            return DeleteResult.Failed("战术文件不存在");
 
         // 权限检查
         var permissionResult = await _permissionService.CanDeleteOwnFile(userId, file.Id);
         if (!permissionResult.Success)
         {
-            return DeleteResult.Fail(permissionResult.ErrorMessage);
+            return DeleteResult.Failed(permissionResult.ErrorMessage);
         }
 
         // 软删除所有版本
@@ -413,7 +413,7 @@ public class TacticsFileService : ITacticsFileService
 
         foreach (var version in versions)
         {
-            version.IsDeleted = 1;
+            version.IsDeleted = true;
 
             // 物理删除文件（可选，这里选择保留）
             // if (File.Exists(version.FilePath))
@@ -426,7 +426,7 @@ public class TacticsFileService : ITacticsFileService
 
         _logger.LogInformation("用户 {UserId} 删除了战术文件 {ShareCode}", userId, shareCode);
 
-        return DeleteResult.Success();
+        return DeleteResult.Succeeded();
     }
 
     /// <summary>
@@ -484,7 +484,7 @@ public class TacticsFileService : ITacticsFileService
     /// </summary>
     private async Task UpdateUserUploadCount(long userId)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await _context.TacticsUsers.FindAsync(userId);
         if (user != null)
         {
             user.UploadCount++;
@@ -517,7 +517,7 @@ public class UploadResult
     public long FileId { get; set; }
     public int VersionNumber { get; set; }
 
-    public static UploadResult Success(string shareCode, long fileId, int versionNumber = 1) => new()
+    public static UploadResult Succeeded(string shareCode, long fileId, int versionNumber = 1) => new()
     {
         Success = true,
         ShareCode = shareCode,
@@ -525,7 +525,7 @@ public class UploadResult
         VersionNumber = versionNumber
     };
 
-    public static UploadResult Fail(string errorMessage) => new()
+    public static UploadResult Failed(string errorMessage) => new()
     {
         Success = false,
         ErrorMessage = errorMessage
@@ -550,6 +550,6 @@ public class DeleteResult
     public bool Success { get; set; }
     public string ErrorMessage { get; set; } = string.Empty;
 
-    public static DeleteResult Success() => new() { Success = true };
-    public static DeleteResult Fail(string message) => new() { Success = false, ErrorMessage = message };
+    public static DeleteResult Succeeded() => new() { Success = true };
+    public static DeleteResult Failed(string message) => new() { Success = false, ErrorMessage = message };
 }
