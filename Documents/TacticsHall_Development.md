@@ -93,14 +93,14 @@ TactiX_Server/
 - [ ] AuthController
 - [ ] 基础配置类
 
-### Phase 2: 文件上传与安全
-- [ ] 文件上传API
-- [ ] 文件安全验证（5层）
-- [ ] tactix文件解析
-- [ ] 配装码生成
-- [ ] 权限检查
+### Phase 2: 文件上传与安全 ✅ 已完成
+- [x] 文件上传API
+- [x] 文件安全验证（5层）
+- [x] tactix文件解析
+- [x] 配装码生成
+- [x] 权限检查
 
-### Phase 3: 版本管理与检索
+### Phase 3: 版本管理与检索 🔄 进行中
 - [ ] 版本链功能
 - [ ] 多维度检索API
 - [ ] 全文搜索
@@ -244,3 +244,28 @@ TACTIX_FEISHU_SECRET
 - 创建配置类（JwtConfig, TacticsHallConfig）
 
 **已完成Phase 1全部内容**
+
+### 2025-03-29 - Phase 2 完成
+- 创建工具类:
+  - ShareCodeUtil - 配装码生成与解析（62进制）
+  - HashUtil - SHA256哈希计算
+  - TacticsFileParser - tactix文件解析与验证
+- 创建服务:
+  - PermissionService - 权限检查服务
+  - FileSecurityValidator - 5层文件安全验证
+  - TacticsFileService - 战术文件上传/下载/删除服务
+- 创建请求/响应模型:
+  - UploadTacticsRequest, UploadVersionRequest, SearchTacticsRequest
+  - UploadTacticsResponse, TacticsDetailResponse等
+- 创建TacticsHallController控制器:
+  - Upload - 上传战术文件
+  - UploadVersion - 上传新版本
+  - GetDetail - 获取文件详情
+  - Search - 搜索战术文件
+  - Download - 下载文件
+  - GetVersions - 获取版本列表
+  - Delete - 删除文件
+  - Like - 点赞功能
+- 更新Program.cs注册新服务
+
+**已完成Phase 2全部内容**
