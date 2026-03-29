@@ -85,9 +85,14 @@ CREATE TABLE IF NOT EXISTS `stats_version_control` (
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40111 SET SQL_NOTES=IFNULL(@OLD_SQL_NOTES, 1) */;
 
--- 添加性能优化索引
-CREATE INDEX IF NOT EXISTS idx_news_community_type ON news_community(type);
-CREATE INDEX IF NOT EXISTS idx_news_community_update_datetime ON news_community(update_datetime);
-CREATE INDEX IF NOT EXISTS idx_news_sys_datetime ON news_sys(datetime);
-CREATE INDEX IF NOT EXISTS idx_stats_version_control_version ON stats_version_control(version);
-CREATE INDEX IF NOT EXISTS idx_stats_excption_report_create_time ON stats_excption_report(create_time);
+-- 添加性能优化索引（兼容MySQL 5.7+）
+DROP INDEX IF EXISTS idx_news_community_type ON news_community;
+CREATE INDEX idx_news_community_type ON news_community(type);
+DROP INDEX IF EXISTS idx_news_community_update_datetime ON news_community;
+CREATE INDEX idx_news_community_update_datetime ON news_community(update_datetime);
+DROP INDEX IF EXISTS idx_news_sys_datetime ON news_sys;
+CREATE INDEX idx_news_sys_datetime ON news_sys(datetime);
+DROP INDEX IF EXISTS idx_stats_version_control_version ON stats_version_control;
+CREATE INDEX idx_stats_version_control_version ON stats_version_control(version);
+DROP INDEX IF EXISTS idx_stats_excption_report_create_time ON stats_excption_report;
+CREATE INDEX idx_stats_excption_report_create_time ON stats_excption_report(create_time);
