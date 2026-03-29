@@ -4,7 +4,7 @@
 		<!-- 统一版本控制 -->
 		<VersionMajor>1</VersionMajor>
 		<VersionMinor>0</VersionMinor>
-		<VersionBuild>1</VersionBuild>
+		<VersionBuild>2</VersionBuild>
 		<VersionRevision>0</VersionRevision>
 		<VersionSuffix Condition="'$(Configuration)' == 'Debug'">dev</VersionSuffix>
 		<VersionSuffix Condition="'$(Configuration)' != 'Debug'">alpha</VersionSuffix>
