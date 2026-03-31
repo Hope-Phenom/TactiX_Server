@@ -10,20 +10,8 @@ public class TacticsDbContext : DbContext
 {
     public TacticsDbContext(DbContextOptions<TacticsDbContext> options) : base(options) { }
 
-    // 用户相关
+    // M1: 只需要UserLevelConfig
     public DbSet<UserLevelConfigModel> UserLevelConfigs { get; set; }
-    public DbSet<TacticsUserModel> TacticsUsers { get; set; }
-    public DbSet<TacticsAdminModel> TacticsAdmins { get; set; }
-
-    // 文件相关
-    public DbSet<TacticsFileModel> TacticsFiles { get; set; }
-    public DbSet<TacticsFileVersionModel> TacticsFileVersions { get; set; }
-    public DbSet<TacticsLikeModel> TacticsLikes { get; set; }
-    public DbSet<TacticsAuditLogModel> TacticsAuditLogs { get; set; }
-
-    // 通知相关
-    public DbSet<NotificationConfigModel> NotificationConfigs { get; set; }
-    public DbSet<NotificationLogModel> NotificationLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,80 +26,98 @@ public class TacticsDbContext : DbContext
             entity.HasIndex(e => e.LevelCode).IsUnique();
         });
 
-        // 用户
-        modelBuilder.Entity<TacticsUserModel>(entity =>
-        {
-            entity.ToTable("tactics_user");
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.OAuthProvider, e.OAuthId }).IsUnique();
-            entity.HasIndex(e => e.LevelCode);
-        });
+        // 种子数据
+        SeedUserLevelConfigs(modelBuilder);
+    }
 
-        // 管理员
-        modelBuilder.Entity<TacticsAdminModel>(entity =>
-        {
-            entity.ToTable("tactics_admin");
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.UserId).IsUnique();
-            entity.HasIndex(e => e.Role);
-        });
+    /// <summary>
+    /// 种子数据：用户等级配置
+    /// </summary>
+    private static void SeedUserLevelConfigs(ModelBuilder modelBuilder)
+    {
+        var now = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        // 战术文件
-        modelBuilder.Entity<TacticsFileModel>(entity =>
-        {
-            entity.ToTable("tactics_file");
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.ShareCode).IsUnique();
-            entity.HasIndex(e => e.Status);
-            entity.HasIndex(e => e.RacePlayed);
-            entity.HasIndex(e => e.RaceOpponent);
-            entity.HasIndex(e => e.Matchup);
-            entity.HasIndex(e => e.TacticType);
-            entity.HasIndex(e => e.UploaderId);
-        });
-
-        // 文件版本
-        modelBuilder.Entity<TacticsFileVersionModel>(entity =>
-        {
-            entity.ToTable("tactics_file_version");
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.FileId, e.VersionNumber }).IsUnique();
-            entity.HasIndex(e => e.FileId);
-        });
-
-        // 点赞
-        modelBuilder.Entity<TacticsLikeModel>(entity =>
-        {
-            entity.ToTable("tactics_like");
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.UserId, e.FileId }).IsUnique();
-            entity.HasIndex(e => e.FileId);
-        });
-
-        // 审核日志
-        modelBuilder.Entity<TacticsAuditLogModel>(entity =>
-        {
-            entity.ToTable("tactics_audit_log");
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.FileId);
-        });
-
-        // 通知配置
-        modelBuilder.Entity<NotificationConfigModel>(entity =>
-        {
-            entity.ToTable("notification_config");
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.ConfigKey).IsUnique();
-        });
-
-        // 通知日志
-        modelBuilder.Entity<NotificationLogModel>(entity =>
-        {
-            entity.ToTable("notification_log");
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.NotificationType, e.EventType });
-            entity.HasIndex(e => e.Status);
-            entity.HasIndex(e => e.CreatedAt);
-        });
+        modelBuilder.Entity<UserLevelConfigModel>().HasData(
+            new UserLevelConfigModel
+            {
+                Id = 1,
+                LevelCode = "normal",
+                LevelName = "普通用户",
+                Description = "普通用户，基础权限",
+                MaxFileSize = 10485760,      // 10MB
+                MaxUploadCount = 10,
+                MaxVersionPerFile = 5,
+                DailyUploadLimit = 3,
+                CanUpload = true,
+                CanDeleteOwnFile = true,
+                CanComment = true,
+                PriorityReview = false,
+                InstantNotification = false,
+                BadgeColor = "#95a5a6",
+                ShowInLeaderboard = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            },
+            new UserLevelConfigModel
+            {
+                Id = 2,
+                LevelCode = "verified",
+                LevelName = "认证作者",
+                Description = "认证作者，更高权限",
+                MaxFileSize = 20971520,      // 20MB
+                MaxUploadCount = 50,
+                MaxVersionPerFile = 10,
+                DailyUploadLimit = 10,
+                CanUpload = true,
+                CanDeleteOwnFile = true,
+                CanComment = true,
+                PriorityReview = true,
+                InstantNotification = true,
+                BadgeColor = "#3498db",
+                ShowInLeaderboard = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            },
+            new UserLevelConfigModel
+            {
+                Id = 3,
+                LevelCode = "pro",
+                LevelName = "职业选手",
+                Description = "职业选手，最高权限",
+                MaxFileSize = 52428800,      // 50MB
+                MaxUploadCount = 200,
+                MaxVersionPerFile = 20,
+                DailyUploadLimit = 50,
+                CanUpload = true,
+                CanDeleteOwnFile = true,
+                CanComment = true,
+                PriorityReview = true,
+                InstantNotification = true,
+                BadgeColor = "#e74c3c",
+                ShowInLeaderboard = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            },
+            new UserLevelConfigModel
+            {
+                Id = 4,
+                LevelCode = "admin",
+                LevelName = "管理员",
+                Description = "系统管理员",
+                MaxFileSize = 104857600,     // 100MB
+                MaxUploadCount = 1000,
+                MaxVersionPerFile = 50,
+                DailyUploadLimit = 100,
+                CanUpload = true,
+                CanDeleteOwnFile = true,
+                CanComment = true,
+                PriorityReview = true,
+                InstantNotification = true,
+                BadgeColor = "#2ecc71",
+                ShowInLeaderboard = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            }
+        );
     }
 }

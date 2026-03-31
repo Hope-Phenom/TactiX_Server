@@ -7,10 +7,8 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 
 using TactiX_Server.Data;
-using TactiX_Server.Middleware;
 using TactiX_Server.Models.Config;
 using TactiX_Server.Service;
-using TactiX_Server.Services;
 
 namespace TactiX_Server
 {
@@ -41,8 +39,6 @@ namespace TactiX_Server
 
                 // Register DbContext
                 RegisterDbContext(builder);
-                // Register Tactics Hall Services
-                RegisterTacticsHallServices(builder);
                 // Register HttpClient
                 RegisterHttpClient(builder);
 
@@ -95,14 +91,7 @@ namespace TactiX_Server
                 }
                 app.UseStaticFiles();
 
-                // Add authentication and authorization
-                app.UseAuthentication();
-                app.UseAuthorization();
-
                 app.MapControllers();
-
-                // Ensure upload directories exist
-                EnsureUploadDirectories(builder.Configuration);
 
                 app.Run();
             }
@@ -160,32 +149,6 @@ namespace TactiX_Server
         }
 
         /// <summary>
-        /// Register Tactics Hall Services
-        /// </summary>
-        private static void RegisterTacticsHallServices(WebApplicationBuilder builder)
-        {
-            // Configuration
-            builder.Services.Configure<TacticsHallConfig>(builder.Configuration.GetSection("TacticsHall"));
-            builder.Services.Configure<JwtConfig>(builder.Configuration.GetSection("Jwt"));
-
-            // JWT Authentication
-            builder.Services.AddJwtAuthentication(builder.Configuration);
-
-            // Services
-            builder.Services.AddScoped<IJwtService, JwtService>();
-            builder.Services.AddScoped<IAdminService, AdminService>();
-            builder.Services.AddScoped<IPermissionService, PermissionService>();
-            builder.Services.AddScoped<IFileSecurityValidator, FileSecurityValidator>();
-            builder.Services.AddScoped<ITacticsFileService, TacticsFileService>();
-
-            // OAuth Providers
-            builder.Services.AddScoped<IOAuthProvider, DevAuthService>();
-            // TODO: Add QQ and WeChat OAuth services
-            // builder.Services.AddScoped<IOAuthProvider, QQAuthService>();
-            // builder.Services.AddScoped<IOAuthProvider, WechatAuthService>();
-        }
-
-        /// <summary>
         /// Register HttpClient
         /// </summary>
         private static void RegisterHttpClient(WebApplicationBuilder builder)
@@ -196,31 +159,6 @@ namespace TactiX_Server
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
                 client.Timeout = TimeSpan.FromSeconds(30);
             });
-        }
-
-        /// <summary>
-        /// Ensure upload directories exist
-        /// </summary>
-        private static void EnsureUploadDirectories(IConfiguration configuration)
-        {
-            var tacticsConfig = configuration.GetSection("TacticsHall").Get<TacticsHallConfig>();
-            if (tacticsConfig == null) return;
-
-            var directories = new[]
-            {
-                tacticsConfig.StoragePath,
-                tacticsConfig.TempPath,
-                tacticsConfig.QuarantinePath
-            };
-
-            foreach (var dir in directories)
-            {
-                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                    Console.WriteLine($"Created directory: {dir}");
-                }
-            }
         }
 
         /// <summary>
