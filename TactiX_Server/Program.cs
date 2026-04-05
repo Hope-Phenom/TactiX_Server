@@ -211,6 +211,16 @@ namespace TactiX_Server
                 options.PageLoadStrategy = PageLoadStrategy.Normal;
                 options.UnhandledPromptBehavior = UnhandledPromptBehavior.Accept;
             });
+
+#if !DEBUG
+            // QQ OAuth配置（仅生产环境）
+            builder.Services.Configure<QQOAuthConfig>(options =>
+            {
+                options.AppId = builder.Configuration["TACTIX_QQ_APP_ID"] ?? string.Empty;
+                options.AppKey = builder.Configuration["TACTIX_QQ_APP_KEY"] ?? string.Empty;
+                options.CallbackUrl = builder.Configuration["TACTIX_QQ_CALLBACK_URL"] ?? string.Empty;
+            });
+#endif
         }
 
         /// <summary>
@@ -231,6 +241,12 @@ namespace TactiX_Server
 
             // OAuth Providers
             builder.Services.AddScoped<IOAuthProvider, DevAuthService>();
+
+#if !DEBUG
+            // QQ OAuth（仅生产环境）
+            builder.Services.AddHttpClient<QQAuthService>();
+            builder.Services.AddScoped<IOAuthProvider, QQAuthService>();
+#endif
 
             // Services (M3)
             builder.Services.AddScoped<IFileSecurityValidator, FileSecurityValidator>();

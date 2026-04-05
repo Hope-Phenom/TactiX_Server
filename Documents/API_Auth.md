@@ -293,6 +293,54 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
+## QQ OAuth 登录
+
+### 环境配置
+
+QQ OAuth需要配置以下环境变量：
+
+| 变量名 | 说明 | 示例值 |
+|--------|------|--------|
+| `TACTIX_QQ_APP_ID` | QQ互联App ID | `你的AppId` |
+| `TACTIX_QQ_APP_KEY` | QQ互联App Key | `你的AppKey` |
+| `TACTIX_QQ_CALLBACK_URL` | 回调地址 | `https://你的域名/api/Auth/Callback/qq` |
+
+**注意：** 开发环境（DEBUG模式）不加载QQ服务，使用DevLogin进行测试。
+
+### QQ OAuth流程
+
+```
+1. GET /api/Auth/Login/qq → 返回QQ授权URL
+2. 用户扫码授权 → QQ回调到 CallbackUrl
+3. GET /api/Auth/Callback/qq?code=xxx → 处理登录
+   ├── 用code换取AccessToken（GET请求，URL编码响应）
+   ├── 用AccessToken获取OpenID（JSONP格式响应）
+   ├── 用AccessToken+OpenID获取用户信息
+   └── 创建/更新用户，返回JWT Token
+```
+
+### QQ API特殊处理
+
+QQ互联的OAuth实现与标准OAuth 2.0有差异：
+
+| API | 标准OAuth | QQ互联 | 服务端处理 |
+|-----|----------|--------|----------|
+| Token交换 | POST请求，JSON响应 | GET请求，URL编码响应 | ParseQueryString解析 |
+| OpenID获取 | 标准JSON响应 | JSONP格式`callback({...})` | 去除callback包装 |
+| 用户信息参数 | client_id | oauth_consumer_key | 使用QQ特有参数名 |
+
+### 获取的用户信息
+
+QQ OAuth登录获取以下用户信息：
+
+| 字段 | QQ API字段 | 说明 |
+|------|----------|------|
+| OAuthId | openid | 用户唯一标识（QQ OpenID） |
+| Nickname | nickname | 用户QQ昵称 |
+| AvatarUrl | figureurl_2 | 用户头像URL（100x100） |
+
+---
+
 ## 测试端点（仅DEBUG模式）
 
 以下端点仅在开发环境（DEBUG编译）可用：
