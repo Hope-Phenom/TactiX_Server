@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using TactiX_Server.Data;
+using TactiX_Server.Models.Config;
 using TactiX_Server.Models.Tactics;
 using TactiX_Server.Services;
 
@@ -18,19 +20,22 @@ public class AuthController : ControllerBase
     private readonly IJwtService _jwtService;
     private readonly IEnumerable<IOAuthProvider> _oauthProviders;
     private readonly IAdminService _adminService;
+    private readonly JwtConfig _jwtConfig;
 
     public AuthController(
         ILogger<AuthController> logger,
         TacticsDbContext context,
         IJwtService jwtService,
         IEnumerable<IOAuthProvider> oauthProviders,
-        IAdminService adminService)
+        IAdminService adminService,
+        IOptions<JwtConfig> jwtConfig)
     {
         _logger = logger;
         _context = context;
         _jwtService = jwtService;
         _oauthProviders = oauthProviders;
         _adminService = adminService;
+        _jwtConfig = jwtConfig.Value;
     }
 
     /// <summary>
@@ -88,14 +93,14 @@ public class AuthController : ControllerBase
             var user = await _context.TacticsUsers
                 .FirstOrDefaultAsync(u => u.OAuthProvider == provider && u.OAuthId == result.OAuthId);
 
-            string levelCode = "normal";
+            string levelCode = UserLevels.Normal;
 
             if (user == null)
             {
                 // 检查是否为超级管理员
                 if (_adminService.IsSuperAdminByName(result.Nickname))
                 {
-                    levelCode = "admin";
+                    levelCode = UserLevels.Admin;
                 }
 
                 user = new TacticsUserModel
@@ -111,20 +116,20 @@ public class AuthController : ControllerBase
                 };
 
                 _context.TacticsUsers.Add(user);
-                await _context.SaveChangesAsync();
 
-                // 如果是超级管理员，自动创建管理员记录
-                if (levelCode == "admin")
+                // 如果是超级管理员，同时创建管理员记录（批量保存）
+                if (levelCode == UserLevels.Admin)
                 {
                     var admin = new TacticsAdminModel
                     {
                         UserId = user.Id,
-                        Role = "super_admin",
+                        Role = AdminRoles.SuperAdmin,
                         CreatedAt = DateTime.UtcNow
                     };
                     _context.TacticsAdmins.Add(admin);
-                    await _context.SaveChangesAsync();
                 }
+
+                await _context.SaveChangesAsync();
 
                 _logger.LogInformation("新用户注册: {Provider}, OAuthId={OAuthId}, UserId={UserId}",
                     provider, result.OAuthId, user.Id);
@@ -133,7 +138,7 @@ public class AuthController : ControllerBase
             {
                 levelCode = user.LevelCode;
 
-                // 更新用户信息
+                // 更新用户信息（仅在值变化时更新）
                 if (!string.IsNullOrEmpty(result.Nickname) && user.Nickname != result.Nickname)
                 {
                     user.Nickname = result.Nickname;
@@ -159,7 +164,7 @@ public class AuthController : ControllerBase
                 levelCode = user.LevelCode,
                 accessToken,
                 refreshToken,
-                expiresIn = 7200 // 2小时
+                expiresIn = _jwtConfig.AccessTokenExpiryHours * 3600
             });
         }
         catch (Exception ex)
@@ -203,7 +208,7 @@ public class AuthController : ControllerBase
         }
 
         var levelConfig = user.LevelConfig ?? await _context.UserLevelConfigs
-            .FirstOrDefaultAsync(l => l.LevelCode == "normal");
+            .FirstOrDefaultAsync(l => l.LevelCode == UserLevels.Normal);
 
         return Ok(new
         {

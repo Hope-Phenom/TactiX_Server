@@ -18,7 +18,12 @@ public static class JwtAuthenticationExtensions
         IConfiguration configuration)
     {
         var jwtSection = configuration.GetSection("Jwt");
-        var jwtConfig = jwtSection.Get<JwtConfig>() ?? new JwtConfig();
+        var jwtConfig = jwtSection.Get<JwtConfig>();
+
+        if (jwtConfig == null)
+        {
+            throw new InvalidOperationException("JWT configuration is missing. Please add 'Jwt' section to appsettings.json");
+        }
 
         services.Configure<JwtConfig>(jwtSection);
 
@@ -45,13 +50,15 @@ public static class JwtAuthenticationExtensions
             {
                 OnAuthenticationFailed = context =>
                 {
-                    Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                    var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerEvents>>();
+                    logger.LogWarning("JWT authentication failed: {Message}", context.Exception.Message);
                     return Task.CompletedTask;
                 },
                 OnTokenValidated = context =>
                 {
                     var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-                    Console.WriteLine($"Token validated for user: {userId}");
+                    var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerEvents>>();
+                    logger.LogDebug("JWT token validated for user: {UserId}", userId);
                     return Task.CompletedTask;
                 }
             };

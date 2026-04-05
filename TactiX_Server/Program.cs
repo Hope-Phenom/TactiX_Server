@@ -43,7 +43,7 @@ namespace TactiX_Server
                 RegisterDbContext(builder);
                 // Register HttpClient
                 RegisterHttpClient(builder);
-                // Register Tactics Hall Services (M2)
+                // Register Tactics Hall Services
                 RegisterTacticsHallServices(builder);
 
                 // Add services to the container.

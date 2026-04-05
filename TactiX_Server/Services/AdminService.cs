@@ -5,12 +5,36 @@ using TactiX_Server.Models.Tactics;
 namespace TactiX_Server.Services;
 
 /// <summary>
+/// 用户等级常量
+/// </summary>
+public static class UserLevels
+{
+    public const string Normal = "normal";
+    public const string Verified = "verified";
+    public const string Pro = "pro";
+    public const string Admin = "admin";
+}
+
+/// <summary>
+/// 管理员角色常量
+/// </summary>
+public static class AdminRoles
+{
+    public const string SuperAdmin = "super_admin";
+    public const string Admin = "admin";
+    public const string Moderator = "moderator";
+}
+
+/// <summary>
 /// 管理员服务接口
 /// </summary>
 public interface IAdminService
 {
     /// <summary>检查用户是否为超级管理员（通过名称）</summary>
     bool IsSuperAdminByName(string? nickname);
+
+    /// <summary>获取用户管理员信息（单次查询）</summary>
+    Task<TacticsAdminModel?> GetAdminAsync(long userId);
 
     /// <summary>检查用户是否为管理员</summary>
     Task<bool> IsAdminAsync(long userId);
@@ -46,30 +70,27 @@ public class AdminService : IAdminService
         return SuperAdminNames.Contains(nickname);
     }
 
-    public async Task<bool> IsAdminAsync(long userId)
+    public async Task<TacticsAdminModel?> GetAdminAsync(long userId)
     {
-        var admin = await _context.TacticsAdmins
+        return await _context.TacticsAdmins
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.UserId == userId);
+    }
 
-        return admin != null;
+    public async Task<bool> IsAdminAsync(long userId)
+    {
+        return await GetAdminAsync(userId) != null;
     }
 
     public async Task<bool> IsSuperAdminAsync(long userId)
     {
-        var admin = await _context.TacticsAdmins
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.UserId == userId);
-
-        return admin?.Role == "super_admin";
+        var admin = await GetAdminAsync(userId);
+        return admin?.Role == AdminRoles.SuperAdmin;
     }
 
     public async Task<string?> GetAdminRoleAsync(long userId)
     {
-        var admin = await _context.TacticsAdmins
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.UserId == userId);
-
+        var admin = await GetAdminAsync(userId);
         return admin?.Role;
     }
 }
