@@ -24,6 +24,9 @@ public interface IJwtService
 
     /// <summary>从Token获取用户ID</summary>
     long? GetUserIdFromToken(string token);
+
+    /// <summary>创建Token验证参数</summary>
+    TokenValidationParameters CreateTokenValidationParameters();
 }
 
 /// <summary>
@@ -32,23 +35,24 @@ public interface IJwtService
 public class JwtService : IJwtService
 {
     private readonly JwtConfig _config;
+    private readonly SecurityKey _cachedSigningKey;
     private readonly ILogger<JwtService> _logger;
 
     public JwtService(IOptions<JwtConfig> config, ILogger<JwtService> logger)
     {
         _config = config.Value;
         _logger = logger;
+        _cachedSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.Secret));
     }
 
     public string GenerateAccessToken(TacticsUserModel user)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.Secret));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var credentials = new SigningCredentials(_cachedSigningKey, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Name, user.Nickname ?? user.OAuthId),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.Nickname ?? user.OAuthId),
             new Claim("level", user.LevelCode),
             new Claim("oauth_provider", user.OAuthProvider),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
@@ -79,25 +83,14 @@ public class JwtService : IJwtService
     {
         try
         {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config.Secret));
             var tokenHandler = new JwtSecurityTokenHandler();
 
-            var validationParameters = new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = key,
-                ValidateIssuer = true,
-                ValidIssuer = _config.Issuer,
-                ValidateAudience = true,
-                ValidAudience = _config.Audience,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero
-            };
+            var validationParameters = CreateTokenValidationParameters();
 
             var principal = tokenHandler.ValidateToken(token, validationParameters, out _);
             return principal;
         }
-        catch (Exception ex)
+        catch (SecurityTokenException ex)
         {
             _logger.LogWarning(ex, "JWT token validation failed");
             return null;
@@ -109,12 +102,30 @@ public class JwtService : IJwtService
         var principal = ValidateToken(token);
         if (principal == null) return null;
 
-        var userIdClaim = principal.FindFirst(JwtRegisteredClaimNames.Sub);
+        var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier);
         if (userIdClaim == null || !long.TryParse(userIdClaim.Value, out var userId))
         {
             return null;
         }
 
         return userId;
+    }
+
+    /// <summary>
+    /// 创建Token验证参数（供JwtService和JwtAuthMiddleware复用）
+    /// </summary>
+    public TokenValidationParameters CreateTokenValidationParameters()
+    {
+        return new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = _cachedSigningKey,
+            ValidateIssuer = true,
+            ValidIssuer = _config.Issuer,
+            ValidateAudience = true,
+            ValidAudience = _config.Audience,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
     }
 }

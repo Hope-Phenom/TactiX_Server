@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using TactiX_Server.Models.Config;
 
@@ -27,6 +29,9 @@ public static class JwtAuthenticationExtensions
 
         services.Configure<JwtConfig>(jwtSection);
 
+        // 缓存SecurityKey避免重复计算
+        var cachedSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig.Secret));
+
         services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -37,7 +42,7 @@ public static class JwtAuthenticationExtensions
             options.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtConfig.Secret)),
+                IssuerSigningKey = cachedSigningKey,
                 ValidateIssuer = true,
                 ValidIssuer = jwtConfig.Issuer,
                 ValidateAudience = true,
@@ -56,7 +61,7 @@ public static class JwtAuthenticationExtensions
                 },
                 OnTokenValidated = context =>
                 {
-                    var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                    var userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                     var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<JwtBearerEvents>>();
                     logger.LogDebug("JWT token validated for user: {UserId}", userId);
                     return Task.CompletedTask;

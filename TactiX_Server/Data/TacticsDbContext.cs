@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TactiX_Server.Models.Tactics;
+using TactiX_Server.Services;
 
 namespace TactiX_Server.Data;
 
@@ -71,7 +72,7 @@ public class TacticsDbContext : DbContext
             new UserLevelConfigModel
             {
                 Id = 1,
-                LevelCode = "normal",
+                LevelCode = UserLevels.Normal,
                 LevelName = "普通用户",
                 Description = "普通用户，基础权限",
                 MaxFileSize = 10485760,
@@ -91,7 +92,7 @@ public class TacticsDbContext : DbContext
             new UserLevelConfigModel
             {
                 Id = 2,
-                LevelCode = "verified",
+                LevelCode = UserLevels.Verified,
                 LevelName = "认证作者",
                 Description = "认证作者，更高权限",
                 MaxFileSize = 20971520,
@@ -111,7 +112,7 @@ public class TacticsDbContext : DbContext
             new UserLevelConfigModel
             {
                 Id = 3,
-                LevelCode = "pro",
+                LevelCode = UserLevels.Pro,
                 LevelName = "职业选手",
                 Description = "职业选手，最高权限",
                 MaxFileSize = 52428800,
@@ -131,7 +132,7 @@ public class TacticsDbContext : DbContext
             new UserLevelConfigModel
             {
                 Id = 4,
-                LevelCode = "admin",
+                LevelCode = UserLevels.Admin,
                 LevelName = "管理员",
                 Description = "系统管理员",
                 MaxFileSize = 104857600,

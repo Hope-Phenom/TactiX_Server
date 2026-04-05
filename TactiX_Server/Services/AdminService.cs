@@ -79,18 +79,24 @@ public class AdminService : IAdminService
 
     public async Task<bool> IsAdminAsync(long userId)
     {
-        return await GetAdminAsync(userId) != null;
+        return await _context.TacticsAdmins
+            .AsNoTracking()
+            .AnyAsync(a => a.UserId == userId);
     }
 
     public async Task<bool> IsSuperAdminAsync(long userId)
     {
-        var admin = await GetAdminAsync(userId);
-        return admin?.Role == AdminRoles.SuperAdmin;
+        return await _context.TacticsAdmins
+            .AsNoTracking()
+            .AnyAsync(a => a.UserId == userId && a.Role == AdminRoles.SuperAdmin);
     }
 
     public async Task<string?> GetAdminRoleAsync(long userId)
     {
-        var admin = await GetAdminAsync(userId);
-        return admin?.Role;
+        return await _context.TacticsAdmins
+            .AsNoTracking()
+            .Where(a => a.UserId == userId)
+            .Select(a => a.Role)
+            .FirstOrDefaultAsync();
     }
 }
