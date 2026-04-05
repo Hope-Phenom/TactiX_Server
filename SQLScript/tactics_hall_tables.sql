@@ -92,3 +92,52 @@ INSERT INTO `user_level_config`
 (3, 'pro', '职业选手', '职业选手，最高权限', 52428800, 200, 20, 50, 1, 1, 1, 1, 1, '#e74c3c'),
 (4, 'admin', '管理员', '系统管理员', 104857600, 1000, 50, 100, 1, 1, 1, 1, 1, '#2ecc71')
 ON DUPLICATE KEY UPDATE `updated_at` = CURRENT_TIMESTAMP;
+
+-- --------------------------------------------------------
+-- 4. 战术文件表
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `tactics_file` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `share_code` VARCHAR(8) NOT NULL COMMENT '8字符配装码',
+    `name` VARCHAR(255) COMMENT '战术名称',
+    `author` VARCHAR(128) COMMENT '作者名称',
+    `race` VARCHAR(1) COMMENT '种族代码: P/T/Z',
+    `uploader_id` BIGINT UNSIGNED NOT NULL COMMENT '上传用户ID',
+    `file_path` VARCHAR(512) NOT NULL COMMENT '文件存储路径',
+    `file_hash` VARCHAR(64) NOT NULL COMMENT 'SHA256哈希',
+    `file_size` BIGINT UNSIGNED NOT NULL COMMENT '文件大小(字节)',
+    `version` INT UNSIGNED DEFAULT 1 COMMENT '当前版本号',
+    `original_file_id` BIGINT UNSIGNED COMMENT '原始文件ID(版本追溯)',
+    `latest_version_id` BIGINT UNSIGNED COMMENT '最新版本ID',
+    `status` VARCHAR(16) NOT NULL DEFAULT 'pending' COMMENT '审核状态: pending/approved/rejected',
+    `download_count` INT UNSIGNED DEFAULT 0 COMMENT '下载次数',
+    `like_count` INT UNSIGNED DEFAULT 0 COMMENT '点赞次数',
+    `is_public` TINYINT(1) DEFAULT 1 COMMENT '是否公开',
+    `is_deleted` TINYINT(1) DEFAULT 0 COMMENT '是否删除',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uk_share_code` (`share_code`),
+    KEY `idx_uploader_id` (`uploader_id`),
+    KEY `idx_race` (`race`),
+    KEY `idx_status` (`status`),
+    KEY `idx_file_hash` (`file_hash`),
+    CONSTRAINT `fk_file_uploader` FOREIGN KEY (`uploader_id`) REFERENCES `tactics_user`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='战术文件表';
+
+-- --------------------------------------------------------
+-- 5. 战术文件版本表
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `tactics_file_version` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `file_id` BIGINT UNSIGNED NOT NULL COMMENT '关联文件ID',
+    `version_number` INT UNSIGNED NOT NULL COMMENT '版本号(从1开始)',
+    `file_path` VARCHAR(512) NOT NULL COMMENT '文件存储路径',
+    `file_hash` VARCHAR(64) NOT NULL COMMENT 'SHA256哈希',
+    `file_size` BIGINT UNSIGNED NOT NULL COMMENT '文件大小(字节)',
+    `changelog` TEXT COMMENT '版本更新说明',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uk_file_version` (`file_id`, `version_number`),
+    KEY `idx_file_id` (`file_id`),
+    KEY `idx_file_hash` (`file_hash`),
+    CONSTRAINT `fk_version_file` FOREIGN KEY (`file_id`) REFERENCES `tactics_file`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='战术文件版本表';

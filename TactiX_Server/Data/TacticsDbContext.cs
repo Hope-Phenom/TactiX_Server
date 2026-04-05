@@ -16,6 +16,10 @@ public class TacticsDbContext : DbContext
     public DbSet<TacticsUserModel> TacticsUsers { get; set; }
     public DbSet<TacticsAdminModel> TacticsAdmins { get; set; }
 
+    // 文件相关
+    public DbSet<TacticsFileModel> TacticsFiles { get; set; }
+    public DbSet<TacticsFileVersionModel> TacticsFileVersions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -54,6 +58,53 @@ public class TacticsDbContext : DbContext
             entity.HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 战术文件
+        modelBuilder.Entity<TacticsFileModel>(entity =>
+        {
+            entity.ToTable("tactics_file");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.ShareCode).IsUnique();
+            entity.HasIndex(e => e.UploaderId);
+            entity.HasIndex(e => e.Race);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.FileHash);
+
+            entity.Property(e => e.ShareCode).HasMaxLength(8).IsRequired();
+            entity.Property(e => e.Name).HasMaxLength(255);
+            entity.Property(e => e.Author).HasMaxLength(128);
+            entity.Property(e => e.Race).HasMaxLength(1);
+            entity.Property(e => e.FilePath).HasMaxLength(512).IsRequired();
+            entity.Property(e => e.FileHash).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(16).IsRequired();
+
+            entity.HasOne(e => e.Uploader)
+                .WithMany()
+                .HasForeignKey(e => e.UploaderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.LatestVersion)
+                .WithMany()
+                .HasForeignKey(e => e.LatestVersionId);
+        });
+
+        // 战术文件版本
+        modelBuilder.Entity<TacticsFileVersionModel>(entity =>
+        {
+            entity.ToTable("tactics_file_version");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.FileId, e.VersionNumber }).IsUnique();
+            entity.HasIndex(e => e.FileId);
+            entity.HasIndex(e => e.FileHash);
+
+            entity.Property(e => e.FilePath).HasMaxLength(512).IsRequired();
+            entity.Property(e => e.FileHash).HasMaxLength(64).IsRequired();
+
+            entity.HasOne(e => e.File)
+                .WithMany(e => e.Versions)
+                .HasForeignKey(e => e.FileId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

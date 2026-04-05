@@ -235,6 +235,10 @@ namespace TactiX_Server
             // Services (M3)
             builder.Services.AddScoped<IFileSecurityValidator, FileSecurityValidator>();
             builder.Services.AddScoped<TacticsFileParser>();
+
+            // Services (M4)
+            builder.Services.AddScoped<IPermissionService, PermissionService>();
+            builder.Services.AddScoped<ITacticsFileService, TacticsFileService>();
         }
     }
 }

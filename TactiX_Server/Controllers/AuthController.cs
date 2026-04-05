@@ -117,20 +117,20 @@ public class AuthController : ControllerBase
                 };
 
                 _context.TacticsUsers.Add(user);
+                await _context.SaveChangesAsync();  // 先保存获取ID
 
-                // 如果是超级管理员，同时创建管理员记录（批量保存）
+                // 如果是超级管理员，创建管理员记录
                 if (levelCode == UserLevels.Admin)
                 {
                     var admin = new TacticsAdminModel
                     {
-                        UserId = user.Id,
+                        UserId = user.Id,  // 此时已有ID
                         Role = AdminRoles.SuperAdmin,
                         CreatedAt = DateTime.UtcNow
                     };
                     _context.TacticsAdmins.Add(admin);
+                    await _context.SaveChangesAsync();
                 }
-
-                await _context.SaveChangesAsync();
 
                 _logger.LogInformation("新用户注册: {Provider}, OAuthId={OAuthId}, UserId={UserId}",
                     provider, result.OAuthId, user.Id);
@@ -149,6 +149,27 @@ public class AuthController : ControllerBase
                     user.AvatarUrl = result.AvatarUrl;
                 }
                 user.UpdatedAt = DateTime.UtcNow;
+
+                // 检查是否为超级管理员且尚未创建管理员记录
+                if (_adminService.IsSuperAdminByName(result.Nickname) && user.LevelCode != UserLevels.Admin)
+                {
+                    user.LevelCode = UserLevels.Admin;
+                    levelCode = UserLevels.Admin;
+
+                    // 检查是否已有管理员记录
+                    var hasAdminRecord = await _context.TacticsAdmins.AnyAsync(a => a.UserId == user.Id);
+                    if (!hasAdminRecord)
+                    {
+                        var admin = new TacticsAdminModel
+                        {
+                            UserId = user.Id,
+                            Role = AdminRoles.SuperAdmin,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _context.TacticsAdmins.Add(admin);
+                    }
+                }
+
                 await _context.SaveChangesAsync();
             }
 
@@ -243,7 +264,7 @@ public class AuthController : ControllerBase
     [HttpGet("TestShareCode")]
     public IActionResult TestShareCode([FromQuery] long? id, [FromQuery] string? code)
     {
-        var result = new Dictionary<string, object>();
+        var result = new Dictionary<string, object?>();
 
         // 测试ID编码
         if (id.HasValue)

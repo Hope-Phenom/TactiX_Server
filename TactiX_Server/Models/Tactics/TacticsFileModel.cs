@@ -76,6 +76,10 @@ public class TacticsFileModel
     [Column("like_count")]
     public uint LikeCount { get; set; } = 0;
 
+    /// <summary>最新版本ID</summary>
+    [Column("latest_version_id")]
+    public long? LatestVersionId { get; set; }
+
     /// <summary>是否公开</summary>
     [Column("is_public")]
     public bool IsPublic { get; set; } = true;
@@ -96,6 +100,11 @@ public class TacticsFileModel
 
     [ForeignKey(nameof(OriginalFileId))]
     public virtual TacticsFileModel? OriginalFile { get; set; }
+
+    [ForeignKey(nameof(LatestVersionId))]
+    public virtual TacticsFileVersionModel? LatestVersion { get; set; }
+
+    public virtual ICollection<TacticsFileVersionModel> Versions { get; set; } = new List<TacticsFileVersionModel>();
 }
 
 /// <summary>

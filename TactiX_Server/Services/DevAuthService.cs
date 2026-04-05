@@ -44,6 +44,13 @@ public class DevAuthService : IOAuthProvider
         // 内置测试用户
         var result = devUserId switch
         {
+            "hope_phenom" => new OAuthLoginResult
+            {
+                Success = true,
+                OAuthId = "dev_super_admin",
+                Nickname = "hope_phenom",  // 超级管理员，匹配AdminService中的硬编码名单
+                AvatarUrl = DefaultAvatarUrl
+            },
             UserLevels.Admin => new OAuthLoginResult
             {
                 Success = true,
