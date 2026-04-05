@@ -11,6 +11,7 @@ using TactiX_Server.Middleware;
 using TactiX_Server.Models.Config;
 using TactiX_Server.Service;
 using TactiX_Server.Services;
+using TactiX_Server.Utils;
 
 namespace TactiX_Server
 {
@@ -213,19 +214,27 @@ namespace TactiX_Server
         }
 
         /// <summary>
-        /// Register Tactics Hall Services (M2)
+        /// Register Tactics Hall Services (M2 + M3)
         /// </summary>
         private static void RegisterTacticsHallServices(WebApplicationBuilder builder)
         {
+            // Configuration
+            builder.Services.Configure<TacticsHallConfig>(
+                builder.Configuration.GetSection("TacticsHall"));
+
             // JWT Authentication
             builder.Services.AddJwtAuthentication(builder.Configuration);
 
-            // Services
+            // Services (M2)
             builder.Services.AddScoped<IJwtService, JwtService>();
             builder.Services.AddScoped<IAdminService, AdminService>();
 
             // OAuth Providers
             builder.Services.AddScoped<IOAuthProvider, DevAuthService>();
+
+            // Services (M3)
+            builder.Services.AddScoped<IFileSecurityValidator, FileSecurityValidator>();
+            builder.Services.AddScoped<TacticsFileParser>();
         }
     }
 }

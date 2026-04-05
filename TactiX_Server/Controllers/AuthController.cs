@@ -5,6 +5,7 @@ using TactiX_Server.Data;
 using TactiX_Server.Models.Config;
 using TactiX_Server.Models.Tactics;
 using TactiX_Server.Services;
+using TactiX_Server.Utils;
 
 namespace TactiX_Server.Controllers;
 
@@ -232,4 +233,228 @@ public class AuthController : ControllerBase
         }
         return userId;
     }
+
+    #region 测试端点（仅开发模式）
+
+#if DEBUG
+    /// <summary>
+    /// 测试配装码编解码（仅开发模式）
+    /// </summary>
+    [HttpGet("TestShareCode")]
+    public IActionResult TestShareCode([FromQuery] long? id, [FromQuery] string? code)
+    {
+        var result = new Dictionary<string, object>();
+
+        // 测试ID编码
+        if (id.HasValue)
+        {
+            var encoded = ShareCodeUtil.Encode(id.Value);
+            result["input_id"] = id.Value;
+            result["encoded_code"] = encoded ?? "无效ID";
+            result["decoded_back"] = encoded != null ? ShareCodeUtil.Decode(encoded) : null;
+        }
+
+        // 测试代码解码
+        if (!string.IsNullOrEmpty(code))
+        {
+            var decoded = ShareCodeUtil.Decode(code);
+            result["input_code"] = code;
+            result["decoded_id"] = decoded?.ToString() ?? "无效代码";
+            result["valid"] = ShareCodeUtil.IsValid(code);
+        }
+
+        // 批量测试验证
+        var testCases = new[]
+        {
+            (Id: 1L, ExpectedCode: "00000000"),
+            (Id: 62L, ExpectedCode: "0000000z"),
+            (Id: 63L, ExpectedCode: "00000010"),
+            (Id: 3844L, ExpectedCode: "00000100"), // 62^2
+            (Id: 218_340_105_584_896L, ExpectedCode: "zzzzzzzz") // 最大值
+        };
+
+        var testResults = testCases.Select(tc => new
+        {
+            tc.Id,
+            Encoded = ShareCodeUtil.Encode(tc.Id),
+            ExpectedCode = tc.ExpectedCode,
+            DecodedBack = ShareCodeUtil.Encode(tc.Id) != null ? ShareCodeUtil.Decode(ShareCodeUtil.Encode(tc.Id)!) : null,
+            RoundtripMatch = ShareCodeUtil.Encode(tc.Id) != null && ShareCodeUtil.Decode(ShareCodeUtil.Encode(tc.Id)!) == tc.Id
+        }).ToList();
+
+        result["test_cases"] = testResults;
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// 测试文件解析器（仅开发模式）
+    /// </summary>
+    [HttpPost("TestParser")]
+    public IActionResult TestParser()
+    {
+        // 神族测试用例
+        var protossTestJson = @"{
+            ""name"": ""PvZ快攻战术"",
+            ""author"": ""TestAuthor"",
+            ""actions"": [
+                { ""itemAbbr"": ""Pylon"", ""time"": 0 },
+                { ""itemAbbr"": ""Gateway"", ""time"": 30 }
+            ]
+        }";
+
+        // 人族测试用例
+        var terranTestJson = @"{
+            ""name"": ""TvP防守反击"",
+            ""author"": ""TerranMaster"",
+            ""actions"": [
+                { ""itemAbbr"": ""SupplyDepot"", ""time"": 0 },
+                { ""itemAbbr"": ""Barracks"", ""time"": 30 }
+            ]
+        }";
+
+        // 虫族测试用例
+        var zergTestJson = @"{
+            ""name"": ""ZvT快攻"",
+            ""author"": ""ZergPlayer"",
+            ""actions"": [
+                { ""itemAbbr"": ""SpawningPool"", ""time"": 0 }
+            ]
+        }";
+
+        var parser = new TacticsFileParser();
+
+        var results = new[]
+        {
+            (Name: "神族测试", Json: protossTestJson),
+            (Name: "人族测试", Json: terranTestJson),
+            (Name: "虫族测试", Json: zergTestJson)
+        }.Select(r =>
+        {
+            var parseResult = parser.Parse(r.Json);  // 只解析1次
+            return new
+            {
+                testName = r.Name,
+                success = parseResult.Success,
+                name = parseResult.Name,
+                author = parseResult.Author,
+                race = parseResult.Race,
+                raceDisplay = Races.GetDisplayName(parseResult.Race)
+            };
+        }).ToList();
+
+        return Ok(new
+        {
+            testResults = results,
+            summary = new
+            {
+                allPassed = results.All(r => r.success),
+                raceDetectionWorking = results.All(r => r.race != null)
+            }
+        });
+    }
+
+    /// <summary>
+    /// 测试哈希工具（仅开发模式）
+    /// </summary>
+    [HttpGet("TestHash")]
+    public IActionResult TestHash([FromQuery] string? content)
+    {
+        if (string.IsNullOrEmpty(content))
+        {
+            content = "Hello, TactiX!";
+        }
+
+        var hash = HashUtil.ComputeSha256(content);
+        var hashBytes = HashUtil.ComputeSha256(System.Text.Encoding.UTF8.GetBytes(content));
+
+        return Ok(new
+        {
+            content,
+            hash,
+            hashBytes,
+            length = hash.Length,
+            formatCorrect = hash.Length == 64 && hash.All(c => char.IsLower(c) || char.IsDigit(c)),
+            consistency = hash == hashBytes
+        });
+    }
+
+    /// <summary>
+    /// 测试文件验证器（仅开发模式）
+    /// </summary>
+    [HttpPost("TestValidator")]
+    public async Task<IActionResult> TestValidator([FromBody] TestValidatorRequest? request)
+    {
+        request ??= new TestValidatorRequest();
+
+        var testContent = request.Content ?? @"{
+            ""name"": ""测试战术"",
+            ""author"": ""测试作者"",
+            ""description"": ""这是一个正常的战术文件"",
+            ""actions"": [
+                { ""itemAbbr"": ""Pylon"", ""supply"": ""13/15"", ""time"": 100 },
+                { ""itemAbbr"": ""Gateway"", ""supply"": ""16/17"", ""time"": 150 }
+            ]
+        }";
+
+        var contentBytes = System.Text.Encoding.UTF8.GetBytes(testContent);
+        var validator = HttpContext.RequestServices.GetRequiredService<IFileSecurityValidator>();
+        var result = await validator.ValidateAsync(contentBytes, "test.tactix");
+
+        return Ok(new
+        {
+            isValid = result.IsValid,
+            failedLayer = result.FailedLayer,
+            errors = result.Errors,
+            warnings = result.Warnings,
+            fileHash = result.FileHash,
+            hashLength = result.FileHash?.Length,
+            detectedRace = result.DetectedRace,
+            raceDisplay = Races.GetDisplayName(result.DetectedRace),
+            name = result.Name,
+            author = result.Author
+        });
+    }
+
+    /// <summary>
+    /// 测试XSS拦截（仅开发模式）
+    /// </summary>
+    [HttpPost("TestXssBlock")]
+    public async Task<IActionResult> TestXssBlock()
+    {
+        var maliciousContent = @"{
+            ""name"": ""恶意战术<script>alert('xss')</script>"",
+            ""author"": ""黑客"",
+            ""actions"": [
+                { ""itemAbbr"": ""Pylon"" }
+            ]
+        }";
+
+        var contentBytes = System.Text.Encoding.UTF8.GetBytes(maliciousContent);
+        var validator = HttpContext.RequestServices.GetRequiredService<IFileSecurityValidator>();
+        var result = await validator.ValidateAsync(contentBytes, "malicious.tactix");
+
+        return Ok(new
+        {
+            isValid = result.IsValid,
+            shouldFail = !result.IsValid,
+            failedLayer = result.FailedLayer,
+            expectedLayer = 4,
+            errors = result.Errors,
+            blockedXss = result.Errors.Any(e => e.Contains("XSS"))
+        });
+    }
+#endif
+
+    #endregion
 }
+
+#if DEBUG
+/// <summary>
+/// 测试验证器请求
+/// </summary>
+public class TestValidatorRequest
+{
+    public string? Content { get; set; }
+}
+#endif
