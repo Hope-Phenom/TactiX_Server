@@ -10,8 +10,10 @@ public class TacticsDbContext : DbContext
 {
     public TacticsDbContext(DbContextOptions<TacticsDbContext> options) : base(options) { }
 
-    // M1: 只需要UserLevelConfig
+    // 用户相关
     public DbSet<UserLevelConfigModel> UserLevelConfigs { get; set; }
+    public DbSet<TacticsUserModel> TacticsUsers { get; set; }
+    public DbSet<TacticsAdminModel> TacticsAdmins { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,6 +26,34 @@ public class TacticsDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.LevelCode).HasMaxLength(32).IsRequired();
             entity.HasIndex(e => e.LevelCode).IsUnique();
+        });
+
+        // 用户
+        modelBuilder.Entity<TacticsUserModel>(entity =>
+        {
+            entity.ToTable("tactics_user");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.OAuthProvider, e.OAuthId }).IsUnique();
+            entity.HasIndex(e => e.LevelCode);
+
+            entity.HasOne(e => e.LevelConfig)
+                .WithMany()
+                .HasForeignKey(e => e.LevelCode)
+                .HasPrincipalKey(e => e.LevelCode);
+        });
+
+        // 管理员
+        modelBuilder.Entity<TacticsAdminModel>(entity =>
+        {
+            entity.ToTable("tactics_admin");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId).IsUnique();
+            entity.HasIndex(e => e.Role);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // 种子数据
@@ -44,7 +74,7 @@ public class TacticsDbContext : DbContext
                 LevelCode = "normal",
                 LevelName = "普通用户",
                 Description = "普通用户，基础权限",
-                MaxFileSize = 10485760,      // 10MB
+                MaxFileSize = 10485760,
                 MaxUploadCount = 10,
                 MaxVersionPerFile = 5,
                 DailyUploadLimit = 3,
@@ -64,7 +94,7 @@ public class TacticsDbContext : DbContext
                 LevelCode = "verified",
                 LevelName = "认证作者",
                 Description = "认证作者，更高权限",
-                MaxFileSize = 20971520,      // 20MB
+                MaxFileSize = 20971520,
                 MaxUploadCount = 50,
                 MaxVersionPerFile = 10,
                 DailyUploadLimit = 10,
@@ -84,7 +114,7 @@ public class TacticsDbContext : DbContext
                 LevelCode = "pro",
                 LevelName = "职业选手",
                 Description = "职业选手，最高权限",
-                MaxFileSize = 52428800,      // 50MB
+                MaxFileSize = 52428800,
                 MaxUploadCount = 200,
                 MaxVersionPerFile = 20,
                 DailyUploadLimit = 50,
@@ -104,7 +134,7 @@ public class TacticsDbContext : DbContext
                 LevelCode = "admin",
                 LevelName = "管理员",
                 Description = "系统管理员",
-                MaxFileSize = 104857600,     // 100MB
+                MaxFileSize = 104857600,
                 MaxUploadCount = 1000,
                 MaxVersionPerFile = 50,
                 DailyUploadLimit = 100,

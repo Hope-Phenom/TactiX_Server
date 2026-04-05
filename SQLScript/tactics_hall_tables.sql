@@ -1,7 +1,7 @@
 -- --------------------------------------------------------
 -- TactiX 战术大厅数据库脚本
--- Milestone 1: 仅user_level_config表
--- 版本: 1.0.0
+-- Milestone 2: 用户表和管理员表
+-- 版本: 1.1.0
 -- --------------------------------------------------------
 
 -- 使用tactix数据库
@@ -38,6 +38,49 @@ CREATE TABLE IF NOT EXISTS `user_level_config` (
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY `uk_level_code` (`level_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户等级配置表';
+
+-- --------------------------------------------------------
+-- 2. 用户表
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `tactics_user` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `oauth_provider` VARCHAR(16) NOT NULL COMMENT 'OAuth提供商: qq/wechat/dev',
+    `oauth_id` VARCHAR(64) NOT NULL COMMENT 'OAuth平台用户唯一ID',
+    `level_code` VARCHAR(32) NOT NULL DEFAULT 'normal' COMMENT '用户等级',
+    `nickname` VARCHAR(64) COMMENT '昵称',
+    `avatar_url` VARCHAR(255) COMMENT '头像URL',
+    `bio` TEXT COMMENT '个人简介',
+    `is_active` TINYINT(1) DEFAULT 1 COMMENT '账号是否激活',
+
+    -- 统计信息
+    `upload_count` INT UNSIGNED DEFAULT 0 COMMENT '已上传文件数',
+    `total_download_count` INT UNSIGNED DEFAULT 0 COMMENT '总下载次数',
+    `total_like_count` INT UNSIGNED DEFAULT 0 COMMENT '总点赞数',
+
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY `uk_oauth` (`oauth_provider`, `oauth_id`),
+    KEY `idx_level_code` (`level_code`),
+    CONSTRAINT `fk_user_level` FOREIGN KEY (`level_code`) REFERENCES `user_level_config`(`level_code`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='战术大厅用户表';
+
+-- --------------------------------------------------------
+-- 3. 管理员表
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `tactics_admin` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT UNSIGNED NOT NULL COMMENT '关联的用户ID',
+    `role` ENUM('super_admin', 'admin', 'moderator') DEFAULT 'moderator' COMMENT '管理员角色',
+    `granted_by` BIGINT UNSIGNED COMMENT '授予者ID',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uk_user_id` (`user_id`),
+    KEY `idx_role` (`role`),
+    CONSTRAINT `fk_admin_user` FOREIGN KEY (`user_id`) REFERENCES `tactics_user`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='管理员表';
+
+-- --------------------------------------------------------
+-- 初始化数据
+-- --------------------------------------------------------
 
 -- 初始化等级配置数据
 INSERT INTO `user_level_config`

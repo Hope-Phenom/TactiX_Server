@@ -7,8 +7,10 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 
 using TactiX_Server.Data;
+using TactiX_Server.Middleware;
 using TactiX_Server.Models.Config;
 using TactiX_Server.Service;
+using TactiX_Server.Services;
 
 namespace TactiX_Server
 {
@@ -41,6 +43,8 @@ namespace TactiX_Server
                 RegisterDbContext(builder);
                 // Register HttpClient
                 RegisterHttpClient(builder);
+                // Register Tactics Hall Services (M2)
+                RegisterTacticsHallServices(builder);
 
                 // Add services to the container.
                 builder.Services.AddHostedService<NewsGenerateService>();
@@ -90,6 +94,10 @@ namespace TactiX_Server
                     app.UseResponseCompression();
                 }
                 app.UseStaticFiles();
+
+                // Add authentication and authorization
+                app.UseAuthentication();
+                app.UseAuthorization();
 
                 app.MapControllers();
 
@@ -202,6 +210,22 @@ namespace TactiX_Server
                 options.PageLoadStrategy = PageLoadStrategy.Normal;
                 options.UnhandledPromptBehavior = UnhandledPromptBehavior.Accept;
             });
+        }
+
+        /// <summary>
+        /// Register Tactics Hall Services (M2)
+        /// </summary>
+        private static void RegisterTacticsHallServices(WebApplicationBuilder builder)
+        {
+            // JWT Authentication
+            builder.Services.AddJwtAuthentication(builder.Configuration);
+
+            // Services
+            builder.Services.AddScoped<IJwtService, JwtService>();
+            builder.Services.AddScoped<IAdminService, AdminService>();
+
+            // OAuth Providers
+            builder.Services.AddScoped<IOAuthProvider, DevAuthService>();
         }
     }
 }
