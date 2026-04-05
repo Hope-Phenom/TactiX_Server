@@ -463,3 +463,325 @@
 
 - [API_Overview.md](API_Overview.md) - API总览
 - [Constants.md](Constants.md) - 常量定义
+
+---
+
+## 举报模块 (M6)
+
+### SubmitReportRequest
+
+提交举报请求。
+
+```json
+{
+  "shareCode": "string",
+  "reason": "string",
+  "description": "string?"
+}
+```
+
+| 字段 | 类型 | 必需 | 约束 | 说明 |
+|------|------|------|------|------|
+| `shareCode` | string | 是 | 固定8字符 | 被举报文件的配装码 |
+| `reason` | string | 是 | 见Constants.md举报原因 | 举报原因类型 |
+| `description` | string | 否 | 最长500字符 | 举报详细描述 |
+
+---
+
+### ProcessReportRequest
+
+处理举报请求（管理员）。
+
+```json
+{
+  "takeAction": "bool",
+  "handleResult": "string?"
+}
+```
+
+| 字段 | 类型 | 必需 | 说明 |
+|------|------|------|------|
+| `takeAction` | bool | 是 | true=删除文件，false=忽略举报 |
+| `handleResult` | string? | 否 | 处理结果说明（最长500字符） |
+
+---
+
+### SubmitReportResponse
+
+提交举报响应。
+
+```json
+{
+  "reportId": "long",
+  "message": "string"
+}
+```
+
+---
+
+### ReportListResponse
+
+举报列表响应（管理员）。
+
+```json
+{
+  "totalCount": "int",
+  "page": "int",
+  "pageSize": "int",
+  "reports": ["ReportItemResponse"]
+}
+```
+
+---
+
+### ReportItemResponse
+
+举报项响应。
+
+```json
+{
+  "id": "long",
+  "shareCode": "string",
+  "fileName": "string?",
+  "reason": "string",
+  "reasonDisplay": "string",
+  "description": "string?",
+  "status": "string",
+  "statusDisplay": "string",
+  "reporterNickname": "string?",
+  "createdAt": "DateTime"
+}
+```
+
+---
+
+### ReportDetailResponse
+
+举报详情响应（管理员）。
+
+```json
+{
+  "id": "long",
+  "file": "ReportFileResponse?",
+  "reason": "string",
+  "reasonDisplay": "string",
+  "description": "string?",
+  "status": "string",
+  "statusDisplay": "string",
+  "reporter": "UserBriefResponse?",
+  "handler": "UserBriefResponse?",
+  "handleResult": "string?",
+  "createdAt": "DateTime",
+  "updatedAt": "DateTime"
+}
+```
+
+---
+
+### ReportFileResponse
+
+被举报文件简要信息。
+
+```json
+{
+  "shareCode": "string",
+  "name": "string?",
+  "author": "string?",
+  "race": "string?",
+  "uploaderNickname": "string?"
+}
+```
+
+---
+
+### ReportStatsResponse
+
+举报统计响应（管理员）。
+
+```json
+{
+  "pendingCount": "int",
+  "processedCount": "int",
+  "ignoredCount": "int",
+  "totalCount": "int"
+}
+```
+
+---
+
+### UserReportListResponse
+
+用户举报历史响应。
+
+```json
+{
+  "totalCount": "int",
+  "page": "int",
+  "pageSize": "int",
+  "reports": ["UserReportItemResponse"]
+}
+```
+
+---
+
+### UserReportItemResponse
+
+用户举报项响应。
+
+```json
+{
+  "id": "long",
+  "shareCode": "string",
+  "fileName": "string?",
+  "reasonDisplay": "string",
+  "statusDisplay": "string",
+  "createdAt": "DateTime",
+  "handleResult": "string?"
+}
+```
+
+---
+
+## 通知模块 (M7)
+
+### NotificationListResponse
+
+通知列表响应。
+
+```json
+{
+  "totalCount": "int",
+  "page": "int",
+  "pageSize": "int",
+  "notifications": ["NotificationItemResponse"]
+}
+```
+
+---
+
+### NotificationItemResponse
+
+通知项响应。
+
+```json
+{
+  "id": "long",
+  "type": "string",
+  "typeDisplay": "string",
+  "title": "string",
+  "content": "string?",
+  "relatedShareCode": "string?",
+  "relatedFileName": "string?",
+  "relatedUserNickname": "string?",
+  "isRead": "bool",
+  "createdAt": "DateTime",
+  "timeDisplay": "string?"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `type` | string | 通知类型（见Constants.md通知类型） |
+| `typeDisplay` | string | 中文显示名称 |
+| `timeDisplay` | string? | 相对时间显示（如"刚刚"、"5分钟前"、"3天前"） |
+
+---
+
+### UnreadCountResponse
+
+未读通知数量响应。
+
+```json
+{
+  "unreadCount": "int"
+}
+```
+
+---
+
+## 排行榜模块 (M8)
+
+### LeaderboardResponse
+
+热门战术排行榜响应。
+
+```json
+{
+  "period": "string",
+  "race": "string?",
+  "sortBy": "string",
+  "totalCount": "int",
+  "page": "int",
+  "pageSize": "int",
+  "files": ["HotFileRankItem"]
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `period` | string | 时间周期（daily/weekly/monthly/all） |
+| `race` | string? | 种族筛选（P/T/Z/null） |
+| `sortBy` | string | 排序方式（downloads/likes） |
+
+---
+
+### HotFileRankItem
+
+热门战术排行项。
+
+```json
+{
+  "rank": "int",
+  "shareCode": "string",
+  "name": "string?",
+  "author": "string?",
+  "race": "string?",
+  "raceDisplay": "string?",
+  "downloadCount": "uint",
+  "likeCount": "uint",
+  "favoriteCount": "uint",
+  "createdAt": "DateTime",
+  "uploader": "UserBriefResponse?"
+}
+```
+
+---
+
+### UploaderLeaderboardResponse
+
+贡献者排行榜响应。
+
+```json
+{
+  "period": "string",
+  "totalCount": "int",
+  "page": "int",
+  "pageSize": "int",
+  "uploaders": ["UploaderRankItem"]
+}
+```
+
+---
+
+### UploaderRankItem
+
+贡献者排行项。
+
+```json
+{
+  "rank": "int",
+  "userId": "long",
+  "nickname": "string?",
+  "avatarUrl": "string?",
+  "levelCode": "string?",
+  "levelName": "string?",
+  "uploadCount": "int",
+  "totalDownloadCount": "uint",
+  "totalLikeCount": "uint",
+  "qualityScore": "double"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `qualityScore` | double | 综合质量评分 = 下载数×0.3 + 点赞数×0.7 |
