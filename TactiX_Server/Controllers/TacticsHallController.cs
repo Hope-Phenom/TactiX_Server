@@ -180,6 +180,21 @@ public class TacticsHallController : ControllerBase
                 .MaxAsync(v => (int?)v.VersionNumber) ?? 1
             : 1;
 
+        // 检查用户互动状态
+        bool isLikedByUser = false;
+        bool isFavoritedByUser = false;
+
+        if (userId.HasValue && fileId.HasValue)
+        {
+            isLikedByUser = await _context.TacticsLikes
+                .AsNoTracking()
+                .AnyAsync(l => l.UserId == userId.Value && l.FileId == fileId.Value);
+
+            isFavoritedByUser = await _context.TacticsFavorites
+                .AsNoTracking()
+                .AnyAsync(f => f.UserId == userId.Value && f.FileId == fileId.Value);
+        }
+
         var response = new TacticsDetailResponse
         {
             ShareCode = file.ShareCode,
@@ -190,6 +205,9 @@ public class TacticsHallController : ControllerBase
             FileSize = file.FileSize,
             DownloadCount = file.DownloadCount,
             LikeCount = file.LikeCount,
+            FavoriteCount = file.FavoriteCount,
+            IsLikedByUser = isLikedByUser,
+            IsFavoritedByUser = isFavoritedByUser,
             CurrentVersion = currentVersion,
             Status = file.Status,
             CreatedAt = file.CreatedAt,

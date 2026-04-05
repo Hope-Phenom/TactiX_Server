@@ -76,6 +76,10 @@ public class TacticsFileModel
     [Column("like_count")]
     public uint LikeCount { get; set; } = 0;
 
+    /// <summary>收藏次数</summary>
+    [Column("favorite_count")]
+    public uint FavoriteCount { get; set; } = 0;
+
     /// <summary>最新版本ID</summary>
     [Column("latest_version_id")]
     public long? LatestVersionId { get; set; }

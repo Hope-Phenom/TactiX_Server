@@ -141,3 +141,59 @@ CREATE TABLE IF NOT EXISTS `tactics_file_version` (
     KEY `idx_file_hash` (`file_hash`),
     CONSTRAINT `fk_version_file` FOREIGN KEY (`file_id`) REFERENCES `tactics_file`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='战术文件版本表';
+
+-- --------------------------------------------------------
+-- 6. 点赞记录表
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `tactics_like` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT UNSIGNED NOT NULL COMMENT '点赞用户ID',
+    `file_id` BIGINT UNSIGNED NOT NULL COMMENT '点赞的文件ID',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '点赞时间',
+    UNIQUE KEY `uk_user_file` (`user_id`, `file_id`),
+    KEY `idx_file_id` (`file_id`),
+    CONSTRAINT `fk_like_user` FOREIGN KEY (`user_id`) REFERENCES `tactics_user`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_like_file` FOREIGN KEY (`file_id`) REFERENCES `tactics_file`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='点赞记录表';
+
+-- --------------------------------------------------------
+-- 7. 收藏记录表
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `tactics_favorite` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT UNSIGNED NOT NULL COMMENT '收藏用户ID',
+    `file_id` BIGINT UNSIGNED NOT NULL COMMENT '收藏的文件ID',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '收藏时间',
+    UNIQUE KEY `uk_user_file` (`user_id`, `file_id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_file_id` (`file_id`),
+    CONSTRAINT `fk_favorite_user` FOREIGN KEY (`user_id`) REFERENCES `tactics_user`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_favorite_file` FOREIGN KEY (`file_id`) REFERENCES `tactics_file`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='收藏记录表';
+
+-- --------------------------------------------------------
+-- 8. 评论表
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `tactics_comment` (
+    `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT UNSIGNED NOT NULL COMMENT '评论用户ID',
+    `file_id` BIGINT UNSIGNED NOT NULL COMMENT '评论的文件ID',
+    `parent_comment_id` BIGINT UNSIGNED COMMENT '父评论ID(用于嵌套回复)',
+    `content` VARCHAR(1000) NOT NULL COMMENT '评论内容',
+    `is_deleted` TINYINT(1) DEFAULT 0 COMMENT '是否删除(软删除)',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    KEY `idx_file_id` (`file_id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_parent_id` (`parent_comment_id`),
+    CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `tactics_user`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_comment_file` FOREIGN KEY (`file_id`) REFERENCES `tactics_file`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_comment_parent` FOREIGN KEY (`parent_comment_id`) REFERENCES `tactics_comment`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='评论表';
+
+-- --------------------------------------------------------
+-- 数据库升级：添加favorite_count字段
+-- --------------------------------------------------------
+-- 为已存在的tactics_file表添加favorite_count字段
+-- 注意：如果字段已存在会报错，可忽略该错误
+ALTER TABLE `tactics_file` ADD COLUMN `favorite_count` INT UNSIGNED DEFAULT 0 COMMENT '收藏次数' AFTER `like_count`;

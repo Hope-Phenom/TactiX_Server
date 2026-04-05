@@ -20,6 +20,11 @@ public class TacticsDbContext : DbContext
     public DbSet<TacticsFileModel> TacticsFiles { get; set; }
     public DbSet<TacticsFileVersionModel> TacticsFileVersions { get; set; }
 
+    // 互动相关
+    public DbSet<TacticsLikeModel> TacticsLikes { get; set; }
+    public DbSet<TacticsFavoriteModel> TacticsFavorites { get; set; }
+    public DbSet<TacticsCommentModel> TacticsComments { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -106,6 +111,72 @@ public class TacticsDbContext : DbContext
                 .WithMany(e => e.Versions)
                 .HasForeignKey(e => e.FileId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 点赞记录
+        modelBuilder.Entity<TacticsLikeModel>(entity =>
+        {
+            entity.ToTable("tactics_like");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.UserId, e.FileId }).IsUnique();
+            entity.HasIndex(e => e.FileId);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.File)
+                .WithMany()
+                .HasForeignKey(e => e.FileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 收藏记录
+        modelBuilder.Entity<TacticsFavoriteModel>(entity =>
+        {
+            entity.ToTable("tactics_favorite");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.UserId, e.FileId }).IsUnique();
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.FileId);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.File)
+                .WithMany()
+                .HasForeignKey(e => e.FileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 评论记录
+        modelBuilder.Entity<TacticsCommentModel>(entity =>
+        {
+            entity.ToTable("tactics_comment");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.FileId);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.ParentCommentId);
+
+            entity.Property(e => e.Content).HasMaxLength(1000).IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.File)
+                .WithMany()
+                .HasForeignKey(e => e.FileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ParentComment)
+                .WithMany(e => e.Replies)
+                .HasForeignKey(e => e.ParentCommentId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // 种子数据

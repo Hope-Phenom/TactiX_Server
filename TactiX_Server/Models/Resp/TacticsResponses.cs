@@ -50,6 +50,15 @@ public class TacticsDetailResponse
     /// <summary>点赞次数</summary>
     public uint LikeCount { get; set; }
 
+    /// <summary>收藏次数</summary>
+    public uint FavoriteCount { get; set; }
+
+    /// <summary>当前用户是否已点赞</summary>
+    public bool IsLikedByUser { get; set; }
+
+    /// <summary>当前用户是否已收藏</summary>
+    public bool IsFavoritedByUser { get; set; }
+
     /// <summary>当前版本号</summary>
     public int CurrentVersion { get; set; }
 

@@ -239,6 +239,9 @@ namespace TactiX_Server
             // Services (M4)
             builder.Services.AddScoped<IPermissionService, PermissionService>();
             builder.Services.AddScoped<ITacticsFileService, TacticsFileService>();
+
+            // Services (M5)
+            builder.Services.AddScoped<ITacticsInteractionService, TacticsInteractionService>();
         }
     }
 }

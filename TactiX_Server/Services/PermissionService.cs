@@ -33,6 +33,12 @@ public interface IPermissionService
     /// <summary>检查用户是否可以删除文件（上传者或管理员）</summary>
     Task<PermissionCheckResult> CanDeleteFileAsync(long userId, long fileId);
 
+    /// <summary>检查用户是否有评论权限</summary>
+    Task<PermissionCheckResult> CanCommentAsync(long userId);
+
+    /// <summary>检查用户是否可以删除评论（评论者或管理员）</summary>
+    Task<PermissionCheckResult> CanDeleteCommentAsync(long userId, long commentId);
+
     /// <summary>获取用户今日上传数量</summary>
     Task<int> GetTodayUploadCountAsync(long userId);
 
@@ -194,6 +200,52 @@ public class PermissionService : IPermissionService
         return await _context.TacticsFiles
             .AsNoTracking()
             .CountAsync(f => f.UploaderId == userId && !f.IsDeleted);
+    }
+
+    public async Task<PermissionCheckResult> CanCommentAsync(long userId)
+    {
+        var user = await _context.TacticsUsers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId);
+
+        if (user == null)
+            return PermissionCheckResult.Failed("用户不存在");
+
+        if (!user.IsActive)
+            return PermissionCheckResult.Failed("用户账号已被禁用");
+
+        var levelConfig = await _context.UserLevelConfigs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.LevelCode == user.LevelCode);
+
+        if (levelConfig == null)
+            return PermissionCheckResult.Failed("用户等级配置不存在");
+
+        if (!levelConfig.CanComment)
+            return PermissionCheckResult.Failed("您没有评论权限");
+
+        return PermissionCheckResult.SucceededResult();
+    }
+
+    public async Task<PermissionCheckResult> CanDeleteCommentAsync(long userId, long commentId)
+    {
+        var comment = await _context.TacticsComments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == commentId);
+
+        if (comment == null)
+            return PermissionCheckResult.Failed("评论不存在");
+
+        // 管理员可以删除任何评论
+        var isAdmin = await _adminService.IsAdminAsync(userId);
+        if (isAdmin)
+            return PermissionCheckResult.SucceededResult();
+
+        // 非管理员只能删除自己的评论
+        if (comment.UserId != userId)
+            return PermissionCheckResult.Failed("只能删除自己的评论");
+
+        return PermissionCheckResult.SucceededResult();
     }
 
     /// <summary>
