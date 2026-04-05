@@ -242,6 +242,15 @@ namespace TactiX_Server
 
             // Services (M5)
             builder.Services.AddScoped<ITacticsInteractionService, TacticsInteractionService>();
+
+            // Services (M6)
+            builder.Services.AddScoped<ITacticsReportService, TacticsReportService>();
+
+            // Services (M7)
+            builder.Services.AddScoped<ITacticsNotificationService, TacticsNotificationService>();
+
+            // Services (M8)
+            builder.Services.AddScoped<ITacticsLeaderboardService, TacticsLeaderboardService>();
         }
     }
 }

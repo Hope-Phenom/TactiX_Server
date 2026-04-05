@@ -25,6 +25,12 @@ public class TacticsDbContext : DbContext
     public DbSet<TacticsFavoriteModel> TacticsFavorites { get; set; }
     public DbSet<TacticsCommentModel> TacticsComments { get; set; }
 
+    // 举报相关
+    public DbSet<TacticsReportModel> TacticsReports { get; set; }
+
+    // 通知相关
+    public DbSet<TacticsNotificationModel> TacticsNotifications { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -176,6 +182,52 @@ public class TacticsDbContext : DbContext
             entity.HasOne(e => e.ParentComment)
                 .WithMany(e => e.Replies)
                 .HasForeignKey(e => e.ParentCommentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // 举报记录
+        modelBuilder.Entity<TacticsReportModel>(entity =>
+        {
+            entity.ToTable("tactics_report");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.FileId, e.ReporterId }).IsUnique();
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.CreatedAt);
+
+            entity.Property(e => e.Reason).HasMaxLength(32).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(16).IsRequired();
+
+            entity.HasOne(e => e.File)
+                .WithMany()
+                .HasForeignKey(e => e.FileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Reporter)
+                .WithMany()
+                .HasForeignKey(e => e.ReporterId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // 通知记录
+        modelBuilder.Entity<TacticsNotificationModel>(entity =>
+        {
+            entity.ToTable("tactics_notification");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.UserId, e.IsRead });
+            entity.HasIndex(e => e.CreatedAt);
+
+            entity.Property(e => e.Type).HasMaxLength(32).IsRequired();
+            entity.Property(e => e.Title).HasMaxLength(255).IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.RelatedFile)
+                .WithMany()
+                .HasForeignKey(e => e.RelatedFileId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
 

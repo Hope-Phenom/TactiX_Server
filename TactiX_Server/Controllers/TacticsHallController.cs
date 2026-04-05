@@ -20,17 +20,20 @@ public class TacticsHallController : ControllerBase
 {
     private readonly ITacticsFileService _tacticsFileService;
     private readonly IAdminService _adminService;
+    private readonly ITacticsNotificationService _notificationService;
     private readonly TacticsDbContext _context;
     private readonly ILogger<TacticsHallController> _logger;
 
     public TacticsHallController(
         ITacticsFileService tacticsFileService,
         IAdminService adminService,
+        ITacticsNotificationService notificationService,
         TacticsDbContext context,
         ILogger<TacticsHallController> logger)
     {
         _tacticsFileService = tacticsFileService;
         _adminService = adminService;
+        _notificationService = notificationService;
         _context = context;
         _logger = logger;
     }
@@ -554,6 +557,21 @@ public class TacticsHallController : ControllerBase
         file.Status = request.Approved ? FileStatus.Approved : FileStatus.Rejected;
         file.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+
+        // 发送审核通知给上传者
+        var notificationTitle = request.Approved ? "文件审核通过" : "文件审核拒绝";
+        var notificationContent = request.Approved
+            ? $"您的战术文件「{file.Name ?? "未命名"}」已通过审核，现在可以公开访问了。"
+            : $"您的战术文件「{file.Name ?? "未命名"}」未能通过审核，请检查内容后重新提交。";
+
+        await _notificationService.CreateNotificationAsync(
+            file.UploaderId,
+            request.Approved ? NotificationTypes.FileApproved : NotificationTypes.FileRejected,
+            notificationTitle,
+            notificationContent,
+            file.Id,
+            null,
+            null);
 
         _logger.LogInformation(
             "管理员 {AdminId} 审核文件 {ShareCode}: {OldStatus} -> {NewStatus}",

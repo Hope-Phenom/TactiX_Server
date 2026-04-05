@@ -118,6 +118,9 @@ Authorization: Bearer {access_token}
 | **认证** | `/api/Auth` | OAuth登录、Token获取、用户等级信息 |
 | **战术大厅** | `/api/TacticsHall` | 文件上传/下载/搜索/审核 |
 | **战术互动** | `/api/TacticsInteraction` | 点赞/收藏/评论 |
+| **举报** | `/api/Report` | 用户举报、管理员处理 |
+| **通知** | `/api/Notification` | 系统通知、审核结果、互动提醒 |
+| **排行榜** | `/api/Leaderboard` | 热门战术、贡献者排行 |
 | **新闻** | `/api/News` | 社区新闻、系统公告 |
 | **统计** | `/api/Stats` | 异常报告、版本控制 |
 
@@ -226,6 +229,9 @@ Body: { "content": "很棒的战术！" }
 - [API_Auth.md](API_Auth.md) - 认证模块详细接口
 - [API_TacticsHall.md](API_TacticsHall.md) - 战术大厅核心接口
 - [API_TacticsInteraction.md](API_TacticsInteraction.md) - 战术互动接口
+- [API_Report.md](API_Report.md) - 举报模块接口
+- [API_Notification.md](API_Notification.md) - 通知模块接口
+- [API_Leaderboard.md](API_Leaderboard.md) - 排行榜模块接口
 - [API_News.md](API_News.md) - 新闻模块接口
 - [API_Stats.md](API_Stats.md) - 统计模块接口
 - [DataModels.md](DataModels.md) - 数据模型定义

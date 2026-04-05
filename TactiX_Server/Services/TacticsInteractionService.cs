@@ -52,15 +52,18 @@ public class TacticsInteractionService : ITacticsInteractionService
 {
     private readonly TacticsDbContext _context;
     private readonly IPermissionService _permissionService;
+    private readonly ITacticsNotificationService _notificationService;
     private readonly ILogger<TacticsInteractionService> _logger;
 
     public TacticsInteractionService(
         TacticsDbContext context,
         IPermissionService permissionService,
+        ITacticsNotificationService notificationService,
         ILogger<TacticsInteractionService> logger)
     {
         _context = context;
         _permissionService = permissionService;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -73,7 +76,7 @@ public class TacticsInteractionService : ITacticsInteractionService
         var file = await _context.TacticsFiles
             .AsNoTracking()
             .Where(f => f.Id == fileId.Value && !f.IsDeleted)
-            .Select(f => new { f.Id, f.Status })
+            .Select(f => new { f.Id, f.Status, f.UploaderId, f.Name })
             .FirstOrDefaultAsync();
 
         if (file == null) return null;
@@ -126,6 +129,19 @@ public class TacticsInteractionService : ITacticsInteractionService
                     .Where(f => f.Id == fileId.Value)
                     .Select(f => f.LikeCount)
                     .FirstOrDefaultAsync();
+
+                // 点赞成功后发送通知（不给自己发通知）
+                if (isLiked && file.UploaderId != userId)
+                {
+                    await _notificationService.CreateNotificationAsync(
+                        file.UploaderId,
+                        NotificationTypes.FileLiked,
+                        "有人赞了你的战术",
+                        $"你的战术文件「{file.Name ?? "未命名"}」获得了一个点赞。",
+                        file.Id,
+                        null,
+                        userId);
+                }
 
                 return new LikeToggleResponse { IsLiked = isLiked, LikeCount = likeCount };
             }
@@ -288,7 +304,7 @@ public class TacticsInteractionService : ITacticsInteractionService
         var file = await _context.TacticsFiles
             .AsNoTracking()
             .Where(f => f.Id == fileId.Value && !f.IsDeleted)
-            .Select(f => new { f.Id, f.Status })
+            .Select(f => new { f.Id, f.Status, f.Name })
             .FirstOrDefaultAsync();
 
         if (file == null) return null;
@@ -301,7 +317,8 @@ public class TacticsInteractionService : ITacticsInteractionService
         // XSS过滤
         var sanitizedContent = System.Net.WebUtility.HtmlEncode(content);
 
-        // 如果有父评论，检查父评论是否属于同一文件且存在
+        // 获取父评论信息（如果有）
+        long? parentCommentUserId = null;
         if (parentCommentId.HasValue)
         {
             var parentComment = await _context.TacticsComments
@@ -314,6 +331,8 @@ public class TacticsInteractionService : ITacticsInteractionService
             // 限制嵌套深度为2层
             if (parentComment.ParentCommentId.HasValue)
                 return null;
+
+            parentCommentUserId = parentComment.UserId;
         }
 
         var now = DateTime.UtcNow;
@@ -330,6 +349,19 @@ public class TacticsInteractionService : ITacticsInteractionService
 
         _context.TacticsComments.Add(comment);
         await _context.SaveChangesAsync();
+
+        // 发送评论回复通知（不给自己发通知）
+        if (parentCommentUserId.HasValue && parentCommentUserId.Value != userId)
+        {
+            await _notificationService.CreateNotificationAsync(
+                parentCommentUserId.Value,
+                NotificationTypes.CommentReply,
+                "有人回复了你的评论",
+                $"在战术文件「{file.Name ?? "未命名"}」中，有人回复了你的评论。",
+                file.Id,
+                comment.Id,
+                userId);
+        }
 
         return new AddCommentResponse
         {
