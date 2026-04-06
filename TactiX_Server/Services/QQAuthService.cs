@@ -12,7 +12,7 @@ public class QQAuthService : IOAuthProvider
 {
     public string ProviderName => OAuthProviders.QQ;
 
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly QQOAuthConfig _config;
     private readonly ILogger<QQAuthService> _logger;
 
@@ -21,18 +21,19 @@ public class QQAuthService : IOAuthProvider
     private const string OpenIdUrl = "https://graph.qq.com/oauth2.0/me";
     private const string UserInfoUrl = "https://graph.qq.com/user/get_user_info";
 
-    public QQAuthService(HttpClient httpClient, IOptions<QQOAuthConfig> config, ILogger<QQAuthService> logger)
+    public QQAuthService(IHttpClientFactory httpClientFactory, IOptions<QQOAuthConfig> config, ILogger<QQAuthService> logger)
     {
-        _httpClient = httpClient;
+        _httpClientFactory = httpClientFactory;
         _config = config.Value;
         _logger = logger;
 
-        // 验证配置
         if (string.IsNullOrEmpty(_config.AppId) || string.IsNullOrEmpty(_config.AppKey))
         {
             throw new InvalidOperationException("QQ OAuth配置缺失: TACTIX_QQ_APP_ID 或 TACTIX_QQ_APP_KEY 未设置");
         }
     }
+
+    private HttpClient GetClient() => _httpClientFactory.CreateClient("QQAuth");
 
     public Task<string> GetLoginUrlAsync(string redirectUri, string state)
     {
@@ -100,7 +101,7 @@ public class QQAuthService : IOAuthProvider
         var callbackUrl = Uri.EscapeDataString(_config.CallbackUrl);
         var url = $"{TokenUrl}?grant_type=authorization_code&client_id={_config.AppId}&client_secret={_config.AppKey}&code={code}&redirect_uri={callbackUrl}";
 
-        var response = await _httpClient.GetAsync(url);
+        var response = await GetClient().GetAsync(url);
         var content = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
@@ -126,10 +127,10 @@ public class QQAuthService : IOAuthProvider
 
             foreach (var part in parts)
             {
-                var keyValue = part.Split('=');
-                if (keyValue.Length == 2)
+                var keyValue = part.Split('=', 2);
+                if (keyValue.Length >= 2 && !string.IsNullOrEmpty(keyValue[0]))
                 {
-                    dict[keyValue[0]] = keyValue[1];
+                    dict[keyValue[0]] = Uri.UnescapeDataString(keyValue[1]);
                 }
             }
 
@@ -160,7 +161,7 @@ public class QQAuthService : IOAuthProvider
     private async Task<string?> GetOpenIdAsync(string accessToken)
     {
         var url = $"{OpenIdUrl}?access_token={accessToken}";
-        var response = await _httpClient.GetAsync(url);
+        var response = await GetClient().GetAsync(url);
         var content = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
@@ -187,12 +188,12 @@ public class QQAuthService : IOAuthProvider
             {
                 var jsonStart = content.IndexOf('(') + 1;
                 var jsonEnd = content.LastIndexOf(')');
-                if (jsonStart < 0 || jsonEnd < 0 || jsonEnd <= jsonStart)
+                if (jsonStart < 1 || jsonEnd < 0 || jsonEnd <= jsonStart)
                 {
                     _logger.LogWarning("OpenID响应格式错误: {Content}", content);
                     return null;
                 }
-                json = content.Substring(jsonStart, jsonEnd - jsonStart);
+                json = content.Substring(jsonStart, jsonEnd - jsonStart).Trim();
             }
             else
             {
@@ -216,7 +217,7 @@ public class QQAuthService : IOAuthProvider
     private async Task<QQUserInfoResponse?> GetUserInfoAsync(string accessToken, string openId)
     {
         var url = $"{UserInfoUrl}?access_token={accessToken}&oauth_consumer_key={_config.AppId}&openid={openId}";
-        var response = await _httpClient.GetAsync(url);
+        var response = await GetClient().GetAsync(url);
         var content = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
